@@ -34,6 +34,50 @@ func stringsToURLs(list []string) []domain.URL {
 	return ret
 }
 
+func ModelToDomain2(src *model.Pet) (dest *domain.Pet) {
+	if src != nil {
+		dest = new(domain.Pet)
+		dest.ID = src.ID
+		dest.Name = src.Name
+		if src.Status != nil {
+			dest.Status = new(domain.PetStatus)
+			*dest.Status = domain.PetStatus(*src.Status)
+		}
+		for i := 0; i < 3; i++ {
+			if src.Children[i] != nil {
+				dest.Children[i] = new(domain.Category)
+				dest.Children[i].CategoryID = src.Children[i].CategoryID
+				dest.Children[i].Name = src.Children[i].Name
+				if src.Children[i].Foo != nil {
+					dest.Children[i].Foo = new(domain.Foo)
+					if src.Children[i].Foo.Bar != nil {
+						dest.Children[i].Foo.Bar = new(string)
+						*dest.Children[i].Foo.Bar = *src.Children[i].Foo.Bar
+					}
+				}
+			}
+		}
+		if len(src.Childrens) > 0 {
+			dest.Childrens = make([]*domain.Category, len(src.Childrens))
+			for i := 0; i < len(src.Childrens); i++ {
+				if src.Childrens[i] != nil {
+					dest.Childrens[i] = new(domain.Category)
+					dest.Childrens[i].CategoryID = src.Childrens[i].CategoryID
+					dest.Childrens[i].Name = src.Childrens[i].Name
+					if src.Childrens[i].Foo != nil {
+						dest.Childrens[i].Foo = new(domain.Foo)
+						if src.Childrens[i].Foo.Bar != nil {
+							dest.Childrens[i].Foo.Bar = new(string)
+							*dest.Childrens[i].Foo.Bar = *src.Childrens[i].Foo.Bar
+						}
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
 func ModelToDomain(src *model.Pet) (dest *domain.Pet) {
 	if src != nil {
 		dest = new(domain.Pet)
@@ -53,6 +97,23 @@ func ModelToDomain(src *model.Pet) (dest *domain.Pet) {
 					if src.Children[i].Foo.Bar != nil {
 						dest.Children[i].Foo.Bar = new(string)
 						*dest.Children[i].Foo.Bar = *src.Children[i].Foo.Bar
+					}
+				}
+			}
+		}
+		if len(src.Childrens) > 0 {
+			dest.Childrens = make([]*domain.Category, len(src.Childrens))
+			for i := 0; i < len(src.Childrens); i++ {
+				if src.Childrens[i] != nil {
+					dest.Childrens[i] = new(domain.Category)
+					dest.Childrens[i].CategoryID = src.Childrens[i].CategoryID
+					dest.Childrens[i].Name = src.Childrens[i].Name
+					if src.Childrens[i].Foo != nil {
+						dest.Childrens[i].Foo = new(domain.Foo)
+						if src.Childrens[i].Foo.Bar != nil {
+							dest.Childrens[i].Foo.Bar = new(string)
+							*dest.Childrens[i].Foo.Bar = *src.Childrens[i].Foo.Bar
+						}
 					}
 				}
 			}

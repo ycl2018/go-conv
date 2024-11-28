@@ -5,8 +5,9 @@ type Pet struct {
 	//Category  Category
 	Name string
 	//PhotoUrls []URL
-	Status   *PetStatus
-	Children [3]*Category
+	Status    *PetStatus
+	Children  [3]*Category
+	Childrens []*Category `storage:"children"`
 }
 
 type URL string

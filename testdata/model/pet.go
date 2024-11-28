@@ -5,8 +5,9 @@ type Pet struct {
 	//Category  Category `storage:"category"`
 	Name string `storage:"name"`
 	//PhotoUrls []string `storage:"photoUrls"`
-	Status   *string      `storage:"status"`
-	Children [3]*Category `storage:"children"`
+	Status    *string      `storage:"status"`
+	Children  [3]*Category `storage:"children"`
+	Childrens []*Category  `storage:"children"`
 }
 
 type Category struct {

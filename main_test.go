@@ -74,23 +74,6 @@ func Test(t *testing.T) {
 	srcPackage := initial[0]
 	var methods []MethodAndDoc
 
-	var importName = map[string]string{} // path to name
-	for _, spec := range srcAstFile.Imports {
-		var name string
-		if spec.Name == nil {
-			index := strings.LastIndex(spec.Path.Value, "/")
-			name = spec.Path.Value[index+1:]
-		} else {
-			name = spec.Name.Name
-			if name == "." {
-				name = ""
-			}
-		}
-		importName[spec.Path.Value] = name
-	}
-	// 当前包：
-	importName[srcPackage.PkgPath] = ""
-
 	for _, decl := range srcAstFile.Decls {
 		// we only resolve the package level Decl
 		if gd, ok := decl.(*ast.GenDecl); ok {
@@ -134,12 +117,19 @@ func Test(t *testing.T) {
 			Name:    "test_gen.go",
 			Obj:     nil,
 		},
-		Imports: srcAstFile.Imports,
+	}
+	builder := &Builder{
+		f:        f,
+		types:    srcPackage.Types,
+		importer: NewImporter(),
+		pkgPath:  srcPackage.PkgPath,
 	}
 	// parse method
 	for _, method := range methods {
-		buildFunc(f, srcPackage.Types, importName, &method)
+		builder.BuildFunc(&method)
 	}
+	// handle import
+	builder.FillImport()
 	var sb strings.Builder
 	err = printer.Fprint(&sb, token.NewFileSet(), f)
 	if err != nil {
@@ -148,9 +138,9 @@ func Test(t *testing.T) {
 	t.Logf(sb.String())
 }
 
-func buildFunc(f *ast.File, pkg *types.Package, importType map[string]string, method *MethodAndDoc) {
+func (b *Builder) BuildFunc(method *MethodAndDoc) {
 	src := method.Method.Signature().Params().At(0)
-	dest := method.Method.Signature().Results().At(0)
+	dst := method.Method.Signature().Results().At(0)
 	funcName := method.AstFunc.Names[0].Name
 	// add a func
 	fn := &ast.FuncDecl{
@@ -160,7 +150,7 @@ func buildFunc(f *ast.File, pkg *types.Package, importType map[string]string, me
 		Type: method.AstFunc.Type.(*ast.FuncType),
 		Body: &ast.BlockStmt{},
 	}
-	// todo: check fn Type 参数是否有命名
+	// check fn Type 参数是否有命名
 	for _, field := range fn.Type.Params.List {
 		if len(field.Names) == 0 {
 			field.Names = []*ast.Ident{ast.NewIdent("src")}
@@ -169,20 +159,85 @@ func buildFunc(f *ast.File, pkg *types.Package, importType map[string]string, me
 	}
 	for _, field := range fn.Type.Results.List {
 		if len(field.Names) == 0 {
-			field.Names = []*ast.Ident{ast.NewIdent("dest")}
-			dest = types.NewVar(0, dest.Pkg(), "dest", dest.Type())
+			field.Names = []*ast.Ident{ast.NewIdent("dst")}
+			dst = types.NewVar(0, dst.Pkg(), "dst", dst.Type())
 		}
 	}
-	f.Decls = append(f.Decls, fn)
-	builder := &Builder{Package: pkg, ImportName: importType}
-	stmts := builder.buildStmt(dest, src)
+	b.f.Decls = append(b.f.Decls, fn)
+	b.importer.ImportType(src)
+	b.importer.ImportType(dst)
+	stmts := b.buildStmt(dst, src)
 	fn.Body.List = append(fn.Body.List, stmts...)
 	fn.Body.List = append(fn.Body.List, &ast.ExprStmt{X: ast.NewIdent("return")})
 }
 
 type Builder struct {
-	Package    *types.Package
-	ImportName map[string]string
+	f        *ast.File
+	types    *types.Package
+	importer *Importer
+	pkgPath  string
+}
+
+type Importer struct {
+	pkgToName       map[string]string
+	importedPkgName map[string]int
+	imported        []*types.Package
+}
+
+func (i *Importer) ImportType(t *types.Var) string {
+	var pkgPath string
+	var pkgName string
+	var typeName string
+	var typPrefix string
+	var pkg *types.Package
+	var resolve func(tye types.Type)
+	resolve = func(tye types.Type) {
+		switch varType := tye.(type) {
+		case *types.Named:
+			pkg = varType.Obj().Pkg()
+			pkgPath = pkg.Path()
+			pkgName = pkg.Name()
+			typeName += varType.Obj().Name()
+			return
+		case *types.Basic:
+			typeName += varType.Name()
+		case *types.Slice:
+			typPrefix += "[]"
+			resolve(varType.Elem())
+		case *types.Pointer:
+			typPrefix += "*"
+			resolve(varType.Elem())
+		default:
+			panic("expect unreachable")
+		}
+	}
+	resolve(t.Type())
+	if pkgPath == "" {
+		return typeName
+	}
+	pkgImportName := i.pkgToName[pkgPath]
+	if pkgImportName == "" {
+		pkgImportName = pkgName
+		// import pkg name
+		if num, ok := i.importedPkgName[pkgImportName]; ok {
+			next := num + 1
+			i.importedPkgName[pkgImportName] = next
+			pkgImportName = pkgImportName + strconv.Itoa(next)
+		} else {
+			i.importedPkgName[pkgImportName] = 1
+		}
+		i.pkgToName[pkgPath] = pkgImportName
+		i.imported = append(i.imported, pkg)
+	}
+	name := typPrefix + pkgName + "." + typeName
+	return name
+}
+
+func NewImporter() *Importer {
+	return &Importer{
+		pkgToName:       map[string]string{},
+		importedPkgName: map[string]int{},
+	}
 }
 
 func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
@@ -202,20 +257,20 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					Name: src.Name(),
 				},
 				Op: token.NEQ,
-				Y:  &ast.Ident{Name: "nil"},
+				Y:  ast.NewIdent("nil"),
 			},
 			Body: &ast.BlockStmt{},
 		}
 		// dst = new(dst.Type)
 		destPtr, srcPtr := dst.Type().(*types.Pointer), src.Type().(*types.Pointer)
-		dstElemVar := types.NewVar(0, b.Package, "*"+dst.Name(), destPtr.Elem())
-		srcElemVar := types.NewVar(0, b.Package, "*"+src.Name(), srcPtr.Elem())
+		dstElemVar := types.NewVar(0, b.types, "*"+dst.Name(), destPtr.Elem())
+		srcElemVar := types.NewVar(0, b.types, "*"+src.Name(), srcPtr.Elem())
 		initAssign := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{&ast.CallExpr{
 				Fun:  ast.NewIdent("new"),
-				Args: []ast.Expr{ast.NewIdent(importType(b.ImportName, dstElemVar))},
+				Args: []ast.Expr{ast.NewIdent(b.importer.ImportType(dstElemVar))},
 			}},
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, initAssign)
@@ -241,8 +296,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				if srcField.Name() == dstFieldName {
 					dstVarName := dstName + "." + dstFieldName
 					srcVarName := srcName + "." + srcField.Name()
-					dstVar := types.NewVar(0, b.Package, dstVarName, dstField.Type())
-					srcVar := types.NewVar(0, b.Package, srcVarName, srcField.Type())
+					dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
+					srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
 					fieldStmt := b.buildStmt(dstVar, srcVar)
 					stmts = append(stmts, fieldStmt...)
 					match = true
@@ -264,7 +319,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			log.Fatalf("src array len is not equal with dst")
 			return nil
 		}
-		// for i := 0; i<n; i++ {}
+		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
 				Lhs: []ast.Expr{ast.NewIdent("i")},
@@ -282,8 +337,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.Package, dst.Name()+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.Package, src.Name()+"[i]", srcType.Elem())
+		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		stmts = append(stmts, forStmt)
@@ -291,6 +346,73 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 	case *types.Interface:
 	case *types.Slice:
+		srcType, ok := src.Type().(*types.Slice)
+		if !ok {
+			log.Fatalf("src type is not a array:%s", src.String())
+			return nil
+		}
+		ifStmt := &ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X: &ast.CallExpr{
+					Fun:  ast.NewIdent("len"),
+					Args: []ast.Expr{ast.NewIdent(src.Name())},
+				},
+				OpPos: 0,
+				Op:    token.GTR,
+				Y:     ast.NewIdent("0"),
+			},
+			Body: &ast.BlockStmt{},
+		}
+		mkStmt := &ast.AssignStmt{
+			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun:    ast.NewIdent("make"),
+					Lparen: 0,
+					Args: []ast.Expr{
+						// type
+						ast.NewIdent(b.importer.ImportType(dst)),
+						// cap
+						&ast.CallExpr{
+							Fun:  ast.NewIdent("len"),
+							Args: []ast.Expr{ast.NewIdent(src.Name())},
+						},
+					},
+					Ellipsis: 0,
+					Rparen:   0,
+				},
+			},
+		}
+		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
+		// for i := 0; i<n ; i++ {}
+		forStmt := &ast.ForStmt{
+			Init: &ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("i")},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{ast.NewIdent("0")},
+			},
+			Cond: &ast.BinaryExpr{
+				X:  ast.NewIdent("i"),
+				Op: token.LSS,
+				Y: &ast.CallExpr{
+					Fun:  ast.NewIdent("len"),
+					Args: []ast.Expr{ast.NewIdent(src.Name())},
+				},
+			},
+			Post: &ast.IncDecStmt{
+				X:   ast.NewIdent("i"),
+				Tok: token.INC,
+			},
+			Body: &ast.BlockStmt{},
+		}
+		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcType.Elem())
+		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
+		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
+		ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
+		stmts = append(stmts, ifStmt)
+		return stmts
 	case *types.Named:
 		dstUnderType := dstType.Underlying()
 		srcUnderType := src.Type().Underlying()
@@ -299,11 +421,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		case *types.Basic:
 			if src.Type().String() != dst.Type().String() {
 				// not same type
-				srcName = fmt.Sprintf("%s(%s)", importType(b.ImportName, dst), src.Name())
+
+				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst), src.Name())
 			}
 		}
-		dstUnderVar := types.NewVar(0, b.Package, dst.Name(), dstUnderType)
-		srcUnderVar := types.NewVar(0, b.Package, srcName, srcUnderType)
+		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
+		srcUnderVar := types.NewVar(0, b.types, srcName, srcUnderType)
 		return b.buildStmt(dstUnderVar, srcUnderVar)
 	case *types.Basic:
 		srcType, ok := src.Type().(*types.Basic)
@@ -314,8 +437,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				return nil
 			}
 			// cast
-			castName := fmt.Sprintf("%s(%s)", importType(b.ImportName, dst), src.Name())
-			src = types.NewVar(0, b.Package, castName, underType.Underlying())
+			castName := fmt.Sprintf("%s(%s)", b.importer.ImportType(dst), src.Name())
+			src = types.NewVar(0, b.types, castName, underType.Underlying())
 			srcType = underType
 		}
 		if srcType.Kind() != dstType.Kind() {
@@ -336,51 +459,25 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	return stmts
 }
 
-func (b *Builder) buildPointer(dest *types.Var, src *types.Var) *ast.IfStmt {
-	if _, ok := src.Type().(*types.Pointer); !ok {
-		return nil
+func (b *Builder) FillImport() {
+	var importDecls []ast.Decl
+	im := &ast.GenDecl{
+		Doc:   nil,
+		Tok:   token.IMPORT,
+		Specs: []ast.Spec{},
 	}
-	ifStmt := &ast.IfStmt{
-		Cond: &ast.BinaryExpr{
-			X: &ast.Ident{
-				Name: src.Name(),
+	for _, p := range b.importer.imported {
+		spec := &ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "\"" + p.Path() + "\"",
 			},
-			Op: token.NEQ,
-			Y:  &ast.Ident{Name: "nil"},
-		},
-		Body: &ast.BlockStmt{},
-	}
-	// dest = new(dest.Type)
-	it := dest.Type().(*types.Pointer)
-	elementVar := types.NewVar(0, b.Package, dest.Name(), it.Elem())
-	initAssign := &ast.AssignStmt{
-		Lhs: []ast.Expr{ast.NewIdent(dest.Name())},
-		Tok: token.ASSIGN,
-		Rhs: []ast.Expr{&ast.CallExpr{
-			Fun:  ast.NewIdent("new"),
-			Args: []ast.Expr{ast.NewIdent(importType(b.ImportName, elementVar))},
-		}},
-	}
-	ifStmt.Body.List = append(ifStmt.Body.List, initAssign)
-
-	elementStmt := b.buildStmt(elementVar, src)
-	ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)
-	return ifStmt
-}
-
-func importType(importName map[string]string, t *types.Var) string {
-	typeString := t.Type().String()
-	varPath := t.Pkg().Path()
-	ret := strings.Replace(typeString, varPath+"/", importName[varPath], 1)
-	if ret == typeString {
-		// not imported
-		lastIndex := strings.LastIndex(typeString, "/")
-		if lastIndex == -1 {
-			return typeString
 		}
-		ret = typeString[lastIndex+1:]
-		importName[typeString[:lastIndex]] = ret
-		log.Printf("import new type:%s", typeString)
+		im.Specs = append(im.Specs, spec)
+		if name, ok := b.importer.pkgToName[p.Path()]; ok && name != p.Name() {
+			spec.Name = ast.NewIdent(name)
+		}
 	}
-	return ret
+	importDecls = append(importDecls, im)
+	b.f.Decls = append(importDecls, b.f.Decls...)
 }
