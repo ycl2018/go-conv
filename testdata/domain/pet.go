@@ -5,7 +5,8 @@ type Pet struct {
 	//Category  Category
 	Name string
 	//PhotoUrls []URL
-	Status PetStatus
+	Status   *PetStatus
+	Children [3]*Category
 }
 
 type URL string
@@ -16,4 +17,14 @@ func NewURL(s string) URL {
 
 func (u URL) String() string {
 	return string(u)
+}
+
+type Category struct {
+	CategoryID uint64 `storage:"categoryId"`
+	Name       string `storage:"name"`
+	Foo        *Foo
+}
+
+type Foo struct {
+	Bar *string
 }

@@ -208,8 +208,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		// dst = new(dst.Type)
 		destPtr, srcPtr := dst.Type().(*types.Pointer), src.Type().(*types.Pointer)
-		dstElemVar := types.NewVar(0, b.Package, dst.Name(), destPtr.Elem())
-		srcElemVar := types.NewVar(0, b.Package, src.Name(), srcPtr.Elem())
+		dstElemVar := types.NewVar(0, b.Package, "*"+dst.Name(), destPtr.Elem())
+		srcElemVar := types.NewVar(0, b.Package, "*"+src.Name(), srcPtr.Elem())
 		initAssign := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -229,6 +229,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			log.Fatalf("src type is not a struct:%s", src.String())
 			return nil
 		}
+		srcName := strings.TrimPrefix(src.Name(), "*")
+		dstName := strings.TrimPrefix(dst.Name(), "*")
 		for i := range dstType.NumFields() {
 			dstField := dstType.Field(i)
 			dstFieldName := dstField.Name()
@@ -237,8 +239,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			for j := range srcType.NumFields() {
 				srcField := srcType.Field(j)
 				if srcField.Name() == dstFieldName {
-					dstVarName := dst.Name() + "." + dstFieldName
-					srcVarName := src.Name() + "." + srcField.Name()
+					dstVarName := dstName + "." + dstFieldName
+					srcVarName := srcName + "." + srcField.Name()
 					dstVar := types.NewVar(0, b.Package, dstVarName, dstField.Type())
 					srcVar := types.NewVar(0, b.Package, srcVarName, srcField.Type())
 					fieldStmt := b.buildStmt(dstVar, srcVar)
@@ -274,18 +276,18 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				Op: token.LSS,
 				Y:  ast.NewIdent(strconv.FormatInt(srcType.Len(), 10)),
 			},
-			Post: &ast.ExprStmt{
-				X: &ast.UnaryExpr{
-					X:  ast.NewIdent("i"),
-					Op: token.INC,
-				},
+			Post: &ast.IncDecStmt{
+				X:   ast.NewIdent("i"),
+				Tok: token.INC,
 			},
 			Body: &ast.BlockStmt{},
 		}
-		for i := 0; i < int(dstType.Len()); i++ {
-
-		}
-
+		dstElemVar := types.NewVar(0, b.Package, dst.Name()+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.Package, src.Name()+"[i]", srcType.Elem())
+		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
+		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
+		stmts = append(stmts, forStmt)
+		return stmts
 	case *types.Map:
 	case *types.Interface:
 	case *types.Slice:

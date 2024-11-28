@@ -34,36 +34,29 @@ func stringsToURLs(list []string) []domain.URL {
 	return ret
 }
 
-func fromDomainCategory(cat domain.Category) model.Category {
-	return model.Category{
-		CategoryID: uint64(cat.ID),
-		Name:       cat.Name,
-	}
-}
-
-func toDomainCategory(cat model.Category) domain.Category {
-	return domain.Category{
-		ID:   uint(cat.CategoryID),
-		Name: cat.Name,
-	}
-}
-
-func DomainToModel(src *domain.Pet) (dest *model.Pet) {
-	if src != nil {
-		dest = new(model.Pet)
-		dest.ID = src.ID
-		dest.Name = src.Name
-		dest.Status = string(src.Status)
-	}
-	return
-}
-
 func ModelToDomain(src *model.Pet) (dest *domain.Pet) {
 	if src != nil {
 		dest = new(domain.Pet)
 		dest.ID = src.ID
 		dest.Name = src.Name
-		dest.Status = domain.PetStatus(src.Status)
+		if src.Status != nil {
+			dest.Status = new(domain.PetStatus)
+			*dest.Status = domain.PetStatus(*src.Status)
+		}
+		for i := 0; i < 3; i++ {
+			if src.Children[i] != nil {
+				dest.Children[i] = new(domain.Category)
+				dest.Children[i].CategoryID = src.Children[i].CategoryID
+				dest.Children[i].Name = src.Children[i].Name
+				if src.Children[i].Foo != nil {
+					dest.Children[i].Foo = new(domain.Foo)
+					if src.Children[i].Foo.Bar != nil {
+						dest.Children[i].Foo.Bar = new(string)
+						*dest.Children[i].Foo.Bar = *src.Children[i].Foo.Bar
+					}
+				}
+			}
+		}
 	}
 	return
 }
