@@ -8,6 +8,7 @@ type Pet struct {
 	Status    *PetStatus
 	Children  [3]*Category
 	Childrens []*Category `storage:"children"`
+	MapChild  map[string]*Category
 }
 
 type URL string

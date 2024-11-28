@@ -45,6 +45,29 @@ func ModelToDomain(src *model.Pet) (dst *domain.Pet) {
 				}
 			}
 		}
+		if len(src.MapChild) > 0 {
+			dst.MapChild = make(map[string]*domain.Category, len(src.MapChild))
+			for k, v := range src.MapChild {
+				var (
+					tmpK string
+					tmpV *domain.Category
+				)
+				tmpK = k
+				if v != nil {
+					tmpV = new(domain.Category)
+					tmpV.CategoryID = v.CategoryID
+					tmpV.Name = v.Name
+					if v.Foo != nil {
+						tmpV.Foo = new(domain.Foo)
+						if v.Foo.Bar != nil {
+							tmpV.Foo.Bar = new(string)
+							*tmpV.Foo.Bar = *v.Foo.Bar
+						}
+					}
+				}
+				dst.MapChild[tmpK] = tmpV
+			}
+		}
 	}
 	return
 }

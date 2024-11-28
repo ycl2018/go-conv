@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+//go:generate
 type MethodAndDoc struct {
 	Method  *types.Func
 	AstFunc *ast.Field
@@ -344,6 +345,97 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, forStmt)
 		return stmts
 	case *types.Map:
+		srcType, ok := src.Type().(*types.Map)
+		if !ok {
+			log.Fatalf("src type is not a map:%s", src.String())
+			return nil
+		}
+		ifStmt := &ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X: &ast.CallExpr{
+					Fun:  ast.NewIdent("len"),
+					Args: []ast.Expr{ast.NewIdent(src.Name())},
+				},
+				OpPos: 0,
+				Op:    token.GTR,
+				Y:     ast.NewIdent("0"),
+			},
+			Body: &ast.BlockStmt{},
+		}
+
+		dstKeyVar := types.NewVar(0, b.types, "tmpK", dstType.Key())
+		dstValueVar := types.NewVar(0, b.types, "tmpV", dstType.Elem())
+		srcKeyVar := types.NewVar(0, b.types, "k", srcType.Key())
+		srcValueVar := types.NewVar(0, b.types, "v", srcType.Elem())
+
+		dstKeyTypeStr := b.importer.ImportType(dstKeyVar)
+		dstValueTypeStr := b.importer.ImportType(dstValueVar)
+
+		mkStmt := &ast.AssignStmt{
+			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun:    ast.NewIdent("make"),
+					Lparen: 0,
+					Args: []ast.Expr{
+						// type
+						&ast.MapType{
+							Key:   ast.NewIdent(dstKeyTypeStr),
+							Value: ast.NewIdent(dstValueTypeStr),
+						},
+						// cap
+						&ast.CallExpr{
+							Fun:  ast.NewIdent("len"),
+							Args: []ast.Expr{ast.NewIdent(src.Name())},
+						},
+					},
+				},
+			},
+		}
+		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
+		// for k, v := range src.xx
+		rangeStmt := &ast.RangeStmt{
+			Key:   ast.NewIdent("k"),
+			Value: ast.NewIdent("v"),
+			Tok:   token.DEFINE,
+			X:     ast.NewIdent(src.Name()),
+			Body:  &ast.BlockStmt{},
+		}
+		ifStmt.Body.List = append(ifStmt.Body.List, rangeStmt)
+		kvDeclStmt := &ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{ast.NewIdent(dstKeyVar.Name())},
+						Type:  ast.NewIdent(dstKeyTypeStr),
+					},
+					&ast.ValueSpec{
+						Names: []*ast.Ident{ast.NewIdent(dstValueVar.Name())},
+						Type:  ast.NewIdent(dstValueTypeStr),
+					},
+				},
+			}}
+		// var (tmpK xx, tmpV xx)
+		rangeStmt.Body.List = append(rangeStmt.Body.List, kvDeclStmt)
+		assignKStmt := b.buildStmt(dstKeyVar, srcKeyVar)
+		assignVStmt := b.buildStmt(dstValueVar, srcValueVar)
+		rangeStmt.Body.List = append(rangeStmt.Body.List, assignKStmt...)
+		rangeStmt.Body.List = append(rangeStmt.Body.List, assignVStmt...)
+		assignMapStmt := &ast.AssignStmt{
+			Lhs: []ast.Expr{&ast.IndexExpr{
+				X:      ast.NewIdent(dst.Name()),
+				Lbrack: 0,
+				Index:  ast.NewIdent(dstKeyVar.Name()),
+				Rbrack: 0,
+			}},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{ast.NewIdent(dstValueVar.Name())},
+		}
+		rangeStmt.Body.List = append(rangeStmt.Body.List, assignMapStmt)
+		stmts = append(stmts, ifStmt)
+		return stmts
 	case *types.Interface:
 	case *types.Slice:
 		srcType, ok := src.Type().(*types.Slice)
@@ -421,7 +513,6 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		case *types.Basic:
 			if src.Type().String() != dst.Type().String() {
 				// not same type
-
 				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst), src.Name())
 			}
 		}

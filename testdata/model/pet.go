@@ -8,6 +8,7 @@ type Pet struct {
 	Status    *string      `storage:"status"`
 	Children  [3]*Category `storage:"children"`
 	Childrens []*Category  `storage:"children"`
+	MapChild  map[string]*Category
 }
 
 type Category struct {
