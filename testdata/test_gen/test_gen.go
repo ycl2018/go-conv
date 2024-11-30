@@ -28,10 +28,8 @@ func DomainPetToModelPet(src *domain.Pet) (dst *model.Pet) {
 		if len(src.Maps) > 0 {
 			dst.Maps = make(map[string]*model.Category, len(src.Maps))
 			for k, v := range src.Maps {
-				var (
-					tmpK	string
-					tmpV	*model.Category
-				)
+				var tmpK string
+				var tmpV *model.Category
 				tmpK = k
 				tmpV = DomainCategoryToModelCategory(v)
 				dst.Maps[tmpK] = tmpV
@@ -64,6 +62,22 @@ func DomainPetToModelPet(src *domain.Pet) (dst *model.Pet) {
 		}
 		for i := 0; i < 3 && i < len(src.SliceToArray); i++ {
 			dst.SliceToArray[i] = DomainCategoryToModelCategory(src.SliceToArray[i])
+		}
+		// omit UnSupported
+		dst.StringConvert = model.MyString(src.StringConvert)
+		dst.StringConvert2 = string(src.StringConvert2)
+		dst.NumberCast = int(src.NumberCast)
+		dst.ByteSliceToString = []byte(src.ByteSliceToString)
+		dst.ByteSliceToString2 = model.MyString(src.ByteSliceToString2)
+		if len(src.MapStringString) > 0 {
+			dst.MapStringString = make(map[string]string, len(src.MapStringString))
+			for k, v := range src.MapStringString {
+				var tmpK string
+				var tmpV string
+				tmpK = k
+				tmpV = v
+				dst.MapStringString[tmpK] = tmpV
+			}
 		}
 	}
 	return

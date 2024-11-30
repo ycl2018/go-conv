@@ -18,6 +18,11 @@ type Convergen interface {
 	ModelToDomain(*model.Pet) *domain.Pet
 }
 
+// ModelToDomain
+// go-conv:conv
+// go-conv:apply ArrayToSlice:slice
+var ModelToDomain func(*model.Pet) *domain.Pet
+
 func urlsToStrings(list []domain.URL) []string {
 	ret := make([]string, len(list))
 	for i, url := range list {

@@ -46,7 +46,6 @@ func Test(t *testing.T) {
 	loadConf := &packages.Config{
 		Mode: parserLoadMode,
 		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-			//log.Printf("parse filename:%s", filename)
 			if filename == absPath {
 				r, e := parser.ParseFile(fset, filename, src, parser.SkipObjectResolution|parser.ParseComments)
 				srcAstFile = r
@@ -229,7 +228,7 @@ func (i *Importer) ImportType(t types.Type) string {
 	}
 	resolve(t)
 	if pkgPath == "" {
-		return typeName
+		return typPrefix + typeName
 	}
 	pkgImportName := i.pkgToName[pkgPath]
 	if pkgImportName == "" {
@@ -257,20 +256,20 @@ func NewImporter() *Importer {
 }
 
 func convArrayToSlice(v types.Type) (s *types.Slice, conved, ok bool) {
-	if s, ok = v.(*types.Slice); ok {
+	if s, ok = v.Underlying().(*types.Slice); ok {
 		return s, false, true
 	}
-	if arr, ok := v.(*types.Array); ok {
+	if arr, ok := v.Underlying().(*types.Array); ok {
 		return types.NewSlice(arr.Elem()), true, true
 	}
 	return nil, false, false
 }
 
 func convSliceToArray(v types.Type) (arr *types.Array, conved, ok bool) {
-	if arr, ok = v.(*types.Array); ok {
+	if arr, ok = v.Underlying().(*types.Array); ok {
 		return arr, false, true
 	}
-	if s, ok := v.(*types.Slice); ok {
+	if s, ok := v.Underlying().(*types.Slice); ok {
 		// we can't define the length
 		return types.NewArray(s.Elem(), -1), true, true
 	}
@@ -282,23 +281,19 @@ func convStructToPointer(v types.Type) (ptr *types.Pointer, conved, ok bool) {
 		return ptr, false, true
 	}
 	// check if src is a Named struct
-	if v, ok := v.(*types.Named); ok {
-		if _, ok := v.Underlying().(*types.Struct); ok {
-			return types.NewPointer(v), true, true
-		}
+	if _, ok := v.Underlying().(*types.Struct); ok {
+		return types.NewPointer(v), true, true
 	}
 	return nil, false, false
 }
 
 func convPtrToStruct(v types.Type) (strut *types.Struct, conved, ok bool) {
-	if strut, ok := v.(*types.Struct); ok {
+	if strut, ok := v.Underlying().(*types.Struct); ok {
 		return strut, false, true
 	}
-	if ptr, ok := v.(*types.Pointer); ok {
-		if named, ok := ptr.Elem().(*types.Named); ok {
-			if strut, ok := named.Underlying().(*types.Struct); ok {
-				return strut, true, true
-			}
+	if ptr, ok := v.Underlying().(*types.Pointer); ok {
+		if strut, ok := ptr.Elem().Underlying().(*types.Struct); ok {
+			return strut, true, true
 		}
 	}
 	return nil, false, false
@@ -389,6 +384,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			var match bool
 			for j := range srcType.NumFields() {
 				srcField := srcType.Field(j)
+				if !srcField.Exported() {
+					continue
+				}
 				if srcField.Name() == dstFieldName {
 					dstVarName := dstName + "." + dstFieldName
 					srcVarName := srcName + "." + srcField.Name()
@@ -402,7 +400,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			}
 			if !match {
 				log.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
-				return append(stmts, buildCommentExpr("omit "+dstFieldName))
+				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
 		}
 		return stmts
@@ -448,7 +446,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, forStmt)
 		return stmts
 	case *types.Map:
-		srcType, ok := src.Type().(*types.Map)
+		srcType, ok := src.Type().Underlying().(*types.Map)
 		if !ok {
 			log.Printf("src type is not a map:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
@@ -497,7 +495,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
-		// for k, v := range src.xx
+		// for k, v := range src
 		rangeStmt := &ast.RangeStmt{
 			Key:   ast.NewIdent("k"),
 			Value: ast.NewIdent("v"),
@@ -506,7 +504,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Body:  &ast.BlockStmt{},
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, rangeStmt)
-		kvDeclStmt := &ast.DeclStmt{
+		kDeclStmt := &ast.DeclStmt{
 			Decl: &ast.GenDecl{
 				Tok: token.VAR,
 				Specs: []ast.Spec{
@@ -514,6 +512,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 						Names: []*ast.Ident{ast.NewIdent(dstKeyVar.Name())},
 						Type:  ast.NewIdent(dstKeyTypeStr),
 					},
+				},
+			}}
+		vDeclStmt := &ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
 					&ast.ValueSpec{
 						Names: []*ast.Ident{ast.NewIdent(dstValueVar.Name())},
 						Type:  ast.NewIdent(dstValueTypeStr),
@@ -521,7 +525,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			}}
 		// var (tmpK xx, tmpV xx)
-		rangeStmt.Body.List = append(rangeStmt.Body.List, kvDeclStmt)
+		rangeStmt.Body.List = append(rangeStmt.Body.List, kDeclStmt, vDeclStmt)
 		assignKStmt := b.buildStmt(dstKeyVar, srcKeyVar)
 		assignVStmt := b.buildStmt(dstValueVar, srcValueVar)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignKStmt...)
@@ -539,10 +543,25 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignMapStmt)
 		stmts = append(stmts, ifStmt)
 		return stmts
-	case *types.Interface:
 	case *types.Slice:
 		srcSliceType, _, ok := convArrayToSlice(src.Type())
 		if !ok {
+			// check is string -> []byte/[]rune
+			if db, ok := dstType.Elem().(*types.Basic); ok &&
+				(db.Kind() == types.Byte || db.Kind() == types.Rune) {
+				if sb, ok := src.Type().(*types.Basic); ok && sb.Kind() == types.String {
+					dstName := b.importer.ImportType(dstType)
+					assignStmt := &ast.AssignStmt{
+						Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{ast.NewIdent(fmt.Sprintf("%s(%s)",
+							dstName,
+							src.Name())),
+						},
+					}
+					return append(stmts, assignStmt)
+				}
+			}
 			log.Printf("src type is not a slice/array:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
@@ -624,33 +643,61 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		return b.buildStmt(dstUnderVar, srcUnderVar)
 	case *types.Basic:
 		srcType, ok := src.Type().(*types.Basic)
+		var valid, needCast bool
 		if !ok {
-			underType, ok := src.Type().Underlying().(*types.Basic)
-			if !ok {
-				log.Printf("src type is not a basic:%s", src.String())
-				return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			// whether dst is string, src is []byte/[]rune
+			if dstType.Kind() == types.String {
+				if s, ok := src.Type().(*types.Slice); ok {
+					if b, ok := s.Elem().(*types.Basic); ok {
+						if b.Kind() == types.Byte || b.Kind() == types.Rune {
+							needCast = true
+							valid = true
+						}
+					}
+				}
 			}
-			// cast
-			castName := fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-			src = types.NewVar(0, b.types, castName, underType.Underlying())
-			srcType = underType
+			if srcUnderType, ok := src.Type().Underlying().(*types.Basic); ok {
+				if canCast(srcUnderType, dstType) {
+					valid = true
+					needCast = true
+				}
+			}
+		} else if srcType.Kind() == dstType.Kind() { // same basic
+			valid = true
+		} else if canCast(srcType, dstType) { // cast basic
+			valid = true
+			needCast = true
 		}
-		if srcType.Kind() != dstType.Kind() {
-			log.Printf("src type kind is not equal %s,%s", srcType.String(), dstType.String())
+		if !valid {
+			log.Printf("src type %s not valid", srcType.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+		}
+		var srcName = src.Name()
+		// check if already cast in parent types.Named var
+		if needCast && strings.Index(src.Name(), "(") == -1 {
+			srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
 		}
 		var assignmentStmt = &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{ast.NewIdent(src.Name())},
+			Rhs: []ast.Expr{ast.NewIdent(srcName)},
 		}
 		stmts = append(stmts, assignmentStmt)
 		return stmts
 	default:
-
+		stmts = append(stmts, buildCommentExpr("omit "+dst.Name()))
 	}
 
 	return stmts
+}
+
+func canCast(from, to *types.Basic) bool {
+	fromInfo, toInfo := from.Info(), to.Info()
+	// numbers
+	if (fromInfo|types.IsNumeric|types.IsUnsigned) != 0 && (toInfo|types.IsNumeric|types.IsUnsigned) != 0 {
+		return true
+	}
+	return false
 }
 
 func (b *Builder) FillImport() {
