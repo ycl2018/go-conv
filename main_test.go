@@ -2,7 +2,6 @@ package go_conv
 
 import (
 	"fmt"
-	"go-conv/testdata"
 	"go-conv/testdata/domain"
 	"go-conv/testdata/model"
 	"go/ast"
@@ -23,10 +22,6 @@ import (
 
 // go-conv:generate
 var ModelToDomain func(*model.Pet) *domain.Pet
-
-func init() {
-	ModelToDomain = testdata.ModelToDomain2
-}
 
 //go:generate
 type MethodAndDoc struct {
@@ -137,7 +132,7 @@ func cleanName(name string) string {
 	var s strings.Builder
 	var first = true
 	for _, c := range name {
-		if unicode.IsLetter(c) {
+		if unicode.IsLetter(c) || (unicode.IsNumber(c) && !first) {
 			if first {
 				s.WriteString(strings.ToUpper(string(c)))
 				first = false
@@ -158,7 +153,7 @@ func (b *Builder) BuildFuncNew(dst, src types.Type) {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
 	funcName := b.GenFuncName(src, dst)
 	b.genFuncName[funcName] = struct{}{}
-	b.curGenFunc = funcName
+	b.rootNode = true
 	srcName, dstName := "src", "dst"
 	// add a func
 	fn := &ast.FuncDecl{
@@ -196,7 +191,7 @@ type Builder struct {
 	importer    *Importer
 	pkgPath     string
 	genFuncName map[string]struct{}
-	curGenFunc  string
+	rootNode    bool
 }
 
 type Importer struct {
@@ -261,38 +256,89 @@ func NewImporter() *Importer {
 	}
 }
 
-func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
-	if dst == nil {
-		return nil
+func convArrayToSlice(v types.Type) (s *types.Slice, conved, ok bool) {
+	if s, ok = v.(*types.Slice); ok {
+		return s, false, true
 	}
+	if arr, ok := v.(*types.Array); ok {
+		return types.NewSlice(arr.Elem()), true, true
+	}
+	return nil, false, false
+}
+
+func convSliceToArray(v types.Type) (arr *types.Array, conved, ok bool) {
+	if arr, ok = v.(*types.Array); ok {
+		return arr, false, true
+	}
+	if s, ok := v.(*types.Slice); ok {
+		// we can't define the length
+		return types.NewArray(s.Elem(), -1), true, true
+	}
+	return nil, false, false
+}
+
+func convStructToPointer(v types.Type) (ptr *types.Pointer, conved, ok bool) {
+	if ptr, ok := v.(*types.Pointer); ok {
+		return ptr, false, true
+	}
+	// check if src is a Named struct
+	if v, ok := v.(*types.Named); ok {
+		if _, ok := v.Underlying().(*types.Struct); ok {
+			return types.NewPointer(v), true, true
+		}
+	}
+	return nil, false, false
+}
+
+func convPtrToStruct(v types.Type) (strut *types.Struct, conved, ok bool) {
+	if strut, ok := v.(*types.Struct); ok {
+		return strut, false, true
+	}
+	if ptr, ok := v.(*types.Pointer); ok {
+		if named, ok := ptr.Elem().(*types.Named); ok {
+			if strut, ok := named.Underlying().(*types.Struct); ok {
+				return strut, true, true
+			}
+		}
+	}
+	return nil, false, false
+}
+
+func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
+	defer func() {
+		b.rootNode = false
+	}()
 	var stmts []ast.Stmt
 	switch dstType := dst.Type().(type) {
 	case *types.Pointer:
-		if _, ok := src.Type().(*types.Pointer); !ok {
-			log.Fatalf("src type is not a pointer:%s", src.String())
-			return nil
+		srcPtrType, conved, ok := convStructToPointer(src.Type())
+		if !ok {
+			log.Printf("src type is not a pointer:%s", src.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		// check if has generated func
 		if named, ok := dstType.Elem().(*types.Named); ok {
-			if _, ok := named.Underlying().(*types.Struct); ok {
-				funcName := b.GenFuncName(src.Type(), dst.Type())
-				if funcName != b.curGenFunc {
-					assignStmt := &ast.AssignStmt{
-						Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-						Tok: token.ASSIGN,
-						Rhs: []ast.Expr{&ast.CallExpr{
-							Fun:  ast.NewIdent(funcName),
-							Args: []ast.Expr{ast.NewIdent(src.Name())},
-						}},
+			if _, ok := named.Underlying().(*types.Struct); ok && !b.rootNode {
+				funcName := b.GenFuncName(srcPtrType, dst.Type())
+				convedSrcName := func() string {
+					if conved {
+						return "&" + src.Name()
 					}
-					if _, ok := b.genFuncName[funcName]; !ok {
-						curGenfunc := b.curGenFunc
-						b.BuildFuncNew(dst.Type(), src.Type())
-						b.curGenFunc = curGenfunc
-					}
-					stmts = append(stmts, assignStmt)
-					return stmts
+					return src.Name()
+				}()
+				assignStmt := &ast.AssignStmt{
+					Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{&ast.CallExpr{
+						Fun:  ast.NewIdent(funcName),
+						Args: []ast.Expr{ast.NewIdent(convedSrcName)},
+					}},
 				}
+				if _, ok := b.genFuncName[funcName]; !ok {
+					b.BuildFuncNew(dst.Type(), srcPtrType)
+				}
+				stmts = append(stmts, assignStmt)
+				return stmts
 			}
 		}
 		ifStmt := &ast.IfStmt{
@@ -306,9 +352,15 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Body: &ast.BlockStmt{},
 		}
 		// dst = new(dst.Type)
-		destPtr, srcPtr := dst.Type().(*types.Pointer), src.Type().(*types.Pointer)
+		destPtr, srcPtr := dst.Type().(*types.Pointer), srcPtrType
+		srcVarName := func() string {
+			if conved {
+				return src.Name()
+			}
+			return "*" + src.Name()
+		}()
 		dstElemVar := types.NewVar(0, b.types, "*"+dst.Name(), destPtr.Elem())
-		srcElemVar := types.NewVar(0, b.types, "*"+src.Name(), srcPtr.Elem())
+		srcElemVar := types.NewVar(0, b.types, srcVarName, srcPtr.Elem())
 		initAssign := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -323,10 +375,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, ifStmt)
 		return stmts
 	case *types.Struct:
-		srcType, ok := src.Type().(*types.Struct)
+		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
-			log.Fatalf("src type is not a struct:%s", src.String())
-			return nil
+			log.Printf("src type is not a struct:%s", src.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
 		dstName := strings.TrimPrefix(dst.Name(), "*")
@@ -349,19 +401,16 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 			}
 			if !match {
-				log.Fatalf("src field %s not found in struct:%s", dstFieldName, srcType.String())
+				log.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
+				return append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
 		}
 		return stmts
 	case *types.Array:
-		srcType, ok := src.Type().(*types.Array)
+		srcArrType, _, ok := convSliceToArray(src.Type())
 		if !ok {
-			log.Fatalf("src type is not a array:%s", src.String())
-			return nil
-		}
-		if srcType.Len() != dstType.Len() {
-			log.Fatalf("src array len is not equal with dst")
-			return nil
+			log.Printf("src type is not a array/slice:%s", src.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
@@ -371,9 +420,20 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				Rhs: []ast.Expr{ast.NewIdent("0")},
 			},
 			Cond: &ast.BinaryExpr{
-				X:  ast.NewIdent("i"),
-				Op: token.LSS,
-				Y:  ast.NewIdent(strconv.FormatInt(srcType.Len(), 10)),
+				X: &ast.BinaryExpr{
+					X:  ast.NewIdent("i"),
+					Op: token.LSS,
+					Y:  ast.NewIdent(strconv.FormatInt(dstType.Len(), 10)),
+				},
+				Op: token.LAND,
+				Y: &ast.BinaryExpr{
+					X:  ast.NewIdent("i"),
+					Op: token.LSS,
+					Y: &ast.CallExpr{
+						Fun:  ast.NewIdent("len"),
+						Args: []ast.Expr{ast.NewIdent(src.Name())},
+					},
+				},
 			},
 			Post: &ast.IncDecStmt{
 				X:   ast.NewIdent("i"),
@@ -382,7 +442,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Body: &ast.BlockStmt{},
 		}
 		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcType.Elem())
+		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcArrType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		stmts = append(stmts, forStmt)
@@ -390,8 +450,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 		srcType, ok := src.Type().(*types.Map)
 		if !ok {
-			log.Fatalf("src type is not a map:%s", src.String())
-			return nil
+			log.Printf("src type is not a map:%s", src.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
 			Cond: &ast.BinaryExpr{
@@ -481,10 +541,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		return stmts
 	case *types.Interface:
 	case *types.Slice:
-		srcType, ok := src.Type().(*types.Slice)
+		srcSliceType, _, ok := convArrayToSlice(src.Type())
 		if !ok {
-			log.Fatalf("src type is not a array:%s", src.String())
-			return nil
+			log.Printf("src type is not a slice/array:%s", src.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
 			Cond: &ast.BinaryExpr{
@@ -542,7 +602,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Body: &ast.BlockStmt{},
 		}
 		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcType.Elem())
+		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
@@ -567,8 +627,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		if !ok {
 			underType, ok := src.Type().Underlying().(*types.Basic)
 			if !ok {
-				log.Fatalf("src type is not a basic:%s", src.String())
-				return nil
+				log.Printf("src type is not a basic:%s", src.String())
+				return append(stmts, buildCommentExpr("omit "+dst.Name()))
 			}
 			// cast
 			castName := fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
@@ -576,8 +636,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			srcType = underType
 		}
 		if srcType.Kind() != dstType.Kind() {
-			log.Fatalf("src type kind is not equal %s,%s", srcType.String(), dstType.String())
-			return nil
+			log.Printf("src type kind is not equal %s,%s", srcType.String(), dstType.String())
+			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		var assignmentStmt = &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
@@ -614,4 +674,13 @@ func (b *Builder) FillImport() {
 	}
 	importDecls = append(importDecls, im)
 	b.f.Decls = append(importDecls, b.f.Decls...)
+}
+
+func buildCommentExpr(comment string) *ast.ExprStmt {
+	return &ast.ExprStmt{
+		X: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "// " + comment,
+		},
+	}
 }

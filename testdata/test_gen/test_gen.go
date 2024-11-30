@@ -16,26 +16,54 @@ func DomainPetToModelPet(src *domain.Pet) (dst *model.Pet) {
 			dst.Status = new(string)
 			*dst.Status = string(*src.Status)
 		}
-		for i := 0; i < 3; i++ {
-			dst.Children[i] = DomainCategoryToModelCategory(src.Children[i])
+		for i := 0; i < 3 && i < len(src.Array); i++ {
+			dst.Array[i] = DomainCategoryToModelCategory(src.Array[i])
 		}
-		if len(src.Childrens) > 0 {
-			dst.Childrens = make([]*model.Category, len(src.Childrens))
-			for i := 0; i < len(src.Childrens); i++ {
-				dst.Childrens[i] = DomainCategoryToModelCategory(src.Childrens[i])
+		if len(src.Slices) > 0 {
+			dst.Slices = make([]*model.Category, len(src.Slices))
+			for i := 0; i < len(src.Slices); i++ {
+				dst.Slices[i] = DomainCategoryToModelCategory(src.Slices[i])
 			}
 		}
-		if len(src.MapChild) > 0 {
-			dst.MapChild = make(map[string]*model.Category, len(src.MapChild))
-			for k, v := range src.MapChild {
+		if len(src.Maps) > 0 {
+			dst.Maps = make(map[string]*model.Category, len(src.Maps))
+			for k, v := range src.Maps {
 				var (
 					tmpK	string
 					tmpV	*model.Category
 				)
 				tmpK = k
 				tmpV = DomainCategoryToModelCategory(v)
-				dst.MapChild[tmpK] = tmpV
+				dst.Maps[tmpK] = tmpV
 			}
+		}
+		dst.Next = DomainPetToModelPet(src.Next)
+		dst.PtrToStruct = DomainCategoryToModelCategory(&src.PtrToStruct)
+		dst.StructToPtr.CategoryID = src.StructToPtr.CategoryID
+		dst.StructToPtr.Name = src.StructToPtr.Name
+		dst.StructToPtr.Foo = DomainFooToModelFoo(src.StructToPtr.Foo)
+		if len(src.SlicesStruct) > 0 {
+			dst.SlicesStruct = make([]model.Category, len(src.SlicesStruct))
+			for i := 0; i < len(src.SlicesStruct); i++ {
+				dst.SlicesStruct[i].CategoryID = src.SlicesStruct[i].CategoryID
+				dst.SlicesStruct[i].Name = src.SlicesStruct[i].Name
+				dst.SlicesStruct[i].Foo = DomainFooToModelFoo(src.SlicesStruct[i].Foo)
+			}
+		}
+		if len(src.SlicesPtr) > 0 {
+			dst.SlicesPtr = make([]*model.Category, len(src.SlicesPtr))
+			for i := 0; i < len(src.SlicesPtr); i++ {
+				dst.SlicesPtr[i] = DomainCategoryToModelCategory(&src.SlicesPtr[i])
+			}
+		}
+		if len(src.ArrayToSlice) > 0 {
+			dst.ArrayToSlice = make([]*model.Category, len(src.ArrayToSlice))
+			for i := 0; i < len(src.ArrayToSlice); i++ {
+				dst.ArrayToSlice[i] = DomainCategoryToModelCategory(src.ArrayToSlice[i])
+			}
+		}
+		for i := 0; i < 3 && i < len(src.SliceToArray); i++ {
+			dst.SliceToArray[i] = DomainCategoryToModelCategory(src.SliceToArray[i])
 		}
 	}
 	return

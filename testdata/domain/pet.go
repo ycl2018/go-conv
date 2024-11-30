@@ -5,10 +5,17 @@ type Pet struct {
 	//Category  Category
 	Name string
 	//PhotoUrls []URL
-	Status    *PetStatus
-	Children  [3]*Category
-	Childrens []*Category `storage:"children"`
-	MapChild  map[string]*Category
+	Status       *PetStatus
+	Array        [3]*Category `storage:"children"`
+	Slices       []*Category  `storage:"children"`
+	Maps         map[string]*Category
+	Next         *Pet
+	PtrToStruct  Category
+	StructToPtr  *Category
+	SlicesStruct []*Category  `storage:"children"`
+	SlicesPtr    []Category   `storage:"children"`
+	ArrayToSlice [3]*Category `storage:"children"`
+	SliceToArray []*Category  `storage:"children"`
 }
 
 type URL string
