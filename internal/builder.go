@@ -24,11 +24,11 @@ type Builder struct {
 	rootNode bool
 }
 
-func NewBuilder(f *ast.File, types *types.Package, importer *Importer) *Builder {
+func NewBuilder(f *ast.File, types *types.Package) *Builder {
 	return &Builder{
 		f:           f,
 		types:       types,
-		importer:    importer,
+		importer:    NewImporter(),
 		genFunc:     make(map[string]*ast.FuncDecl),
 		InitBuilder: NewInitBuilder(),
 	}
@@ -89,15 +89,18 @@ func convSliceToArray(v types.Type) (arr *types.Array, conved, ok bool) {
 	return nil, false, false
 }
 
-func convStructToPointer(v types.Type) (ptr *types.Pointer, conved, ok bool) {
-	if ptr, ok := v.(*types.Pointer); ok {
-		return ptr, false, true
+func isStruct(v types.Type) (named, ok bool) {
+	if _, ok := v.(*types.Struct); ok {
+		return false, true
 	}
 	// check if src is a Named struct
-	if _, ok := v.Underlying().(*types.Struct); ok {
-		return types.NewPointer(v), true, true
+	if namedTypes, ok := v.(*types.Named); ok {
+		if _, ok := namedTypes.Underlying().(*types.Struct); ok {
+			return true, true
+
+		}
 	}
-	return nil, false, false
+	return false, false
 }
 
 func convPtrToStruct(v types.Type) (strut *types.Struct, conved, ok bool) {
@@ -119,18 +122,17 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	var stmts []ast.Stmt
 	switch dstType := dst.Type().(type) {
 	case *types.Pointer:
-		srcPtrType, conved, ok := convStructToPointer(src.Type())
-		if !ok {
-			log.Printf("src type is not a pointer:%s", src.String())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
-		}
+		elemType, ptrDepth, srcIsPtr := dPtr(src.Type())
+		_, srcIsStruct := isStruct(elemType)
 		// check if has generated func
-		if named, ok := dstType.Elem().(*types.Named); ok {
+		if named, ok := dstType.Elem().(*types.Named); ok && srcIsStruct {
 			if _, ok := named.Underlying().(*types.Struct); ok && !b.rootNode {
-				funcName := b.GenFuncName(srcPtrType, dst.Type())
+				funcName := b.GenFuncName(elemType, dst.Type())
 				convedSrcName := func() string {
-					if conved {
+					if !srcIsPtr {
 						return "&" + src.Name()
+					} else {
+						ptrToName(src.Name(), ptrDepth-1)
 					}
 					return src.Name()
 				}()
@@ -143,32 +145,19 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					}},
 				}
 				if _, ok := b.genFunc[funcName]; !ok {
-					b.BuildFunc(dst.Type(), srcPtrType)
+					b.BuildFunc(dst.Type(), types.NewPointer(elemType))
 				}
 				stmts = append(stmts, assignStmt)
 				return stmts
 			}
 		}
-		ifStmt := &ast.IfStmt{
-			Cond: &ast.BinaryExpr{
-				X: &ast.Ident{
-					Name: src.Name(),
-				},
-				Op: token.NEQ,
-				Y:  ast.NewIdent("nil"),
-			},
-			Body: &ast.BlockStmt{},
-		}
+
+		_, depth, _ := dPtr(dstType)
+		dstName := ptrToName(dst.Name(), depth)
+		dstElemVar := types.NewVar(0, b.types, dstName, dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, src.Name(), src.Type())
+		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		// dst = new(dst.Type)
-		destPtr, srcPtr := dst.Type().(*types.Pointer), srcPtrType
-		srcVarName := func() string {
-			if conved {
-				return src.Name()
-			}
-			return "*" + src.Name()
-		}()
-		dstElemVar := types.NewVar(0, b.types, "*"+dst.Name(), destPtr.Elem())
-		srcElemVar := types.NewVar(0, b.types, srcVarName, srcPtr.Elem())
 		initAssign := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -177,11 +166,47 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				Args: []ast.Expr{ast.NewIdent(b.importer.ImportType(dstElemVar.Type()))},
 			}},
 		}
-		ifStmt.Body.List = append(ifStmt.Body.List, initAssign)
-		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
-		ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)
-		stmts = append(stmts, ifStmt)
+		if srcIsPtr {
+			ifStmt := &ast.IfStmt{
+				Cond: &ast.BinaryExpr{
+					X: &ast.Ident{
+						Name: src.Name(),
+					},
+					Op: token.NEQ,
+					Y:  ast.NewIdent("nil"),
+				},
+				Body: &ast.BlockStmt{},
+			}
+
+			ifStmt.Body.List = append(ifStmt.Body.List, initAssign)
+			ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)
+			stmts = append(stmts, ifStmt)
+		} else {
+			stmts = append(stmts, initAssign)
+			stmts = append(stmts, elementStmt...)
+		}
 		return stmts
+	case *types.Named:
+		dstUnderType := dstType.Underlying()
+		//srcUnderType := src.Type().Underlying()
+		var srcType = src.Type()
+		var srcName = src.Name()
+		switch dstUnderType.(type) {
+		case *types.Basic:
+			if src.Type().String() != dst.Type().String() {
+				// we should de Pointer src type, because Named Dst will lose it's real type in next node.
+				elemType, ptrDepth, isPtr := dPtr(src.Type())
+				if isPtr {
+					srcType = elemType
+				}
+				ptrToSrcName := ptrToName(srcName, ptrDepth)
+				// not same type
+				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), ptrToSrcName)
+			}
+		}
+		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
+		srcUnderVar := types.NewVar(0, b.types, srcName, srcType)
+		return b.buildStmt(dstUnderVar, srcUnderVar)
 	case *types.Struct:
 		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
@@ -192,26 +217,26 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		dstName := strings.TrimPrefix(dst.Name(), "*")
 		for i := range dstType.NumFields() {
 			dstField := dstType.Field(i)
-			dstFieldName := dstField.Name()
-			// match srcField
-			var match bool
-			for j := range srcType.NumFields() {
-				srcField := srcType.Field(j)
-				if !srcField.Exported() {
-					continue
-				}
-				if srcField.Name() == dstFieldName {
-					dstVarName := dstName + "." + dstFieldName
-					srcVarName := srcName + "." + srcField.Name()
-					dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
-					srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
-					fieldStmt := b.buildStmt(dstVar, srcVar)
-					stmts = append(stmts, fieldStmt...)
-					match = true
-					break
-				}
+			if !dstField.Exported() {
+				continue
 			}
-			if !match {
+			dstFieldName := dstField.Name()
+			if dstField.Embedded() {
+				dstVar := types.NewVar(0, b.types, dstName+"."+dstFieldName, dstField.Type())
+				srcVar := types.NewVar(0, b.types, srcName, src.Type())
+				fieldStmt := b.buildStmt(dstVar, srcVar)
+				stmts = append(stmts, fieldStmt...)
+				continue
+			}
+			// match srcField
+			if srcField, ok := matchField(dstField, srcType); ok {
+				dstVarName := dstName + "." + dstFieldName
+				srcVarName := srcName + "." + srcField.Name()
+				dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
+				srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
+				fieldStmt := b.buildStmt(dstVar, srcVar)
+				stmts = append(stmts, fieldStmt...)
+			} else {
 				log.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
@@ -440,22 +465,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
 		stmts = append(stmts, ifStmt)
 		return stmts
-	case *types.Named:
-		dstUnderType := dstType.Underlying()
-		srcUnderType := src.Type().Underlying()
-		var srcName = src.Name()
-		switch dstUnderType.(type) {
-		case *types.Basic:
-			if src.Type().String() != dst.Type().String() {
-				// not same type
-				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-			}
-		}
-		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
-		srcUnderVar := types.NewVar(0, b.types, srcName, srcUnderType)
-		return b.buildStmt(dstUnderVar, srcUnderVar)
 	case *types.Basic:
-		srcType, ok := src.Type().(*types.Basic)
+		underType, ptrDepth, _ := dPtr(src.Type())
+		srcType, ok := underType.(*types.Basic)
 		var valid, needCast bool
 		if !ok {
 			// whether dst is string, src is []byte/[]rune
@@ -482,12 +494,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			needCast = true
 		}
 		if !valid {
-			log.Printf("src type %s not valid", srcType.String())
+			log.Printf("src type is not a basic:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
-		var srcName = src.Name()
-		// check if already cast in parent types.Named var
+		var srcName = ptrToName(src.Name(), ptrDepth)
 		if needCast && strings.Index(src.Name(), "(") == -1 {
+			// in parent node, already de pointer src node
 			srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
 		}
 		var assignmentStmt = &ast.AssignStmt{
@@ -502,6 +514,54 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	}
 
 	return stmts
+}
+
+func dPtr(t types.Type) (types.Type, int, bool) {
+	var ptrDepth int
+	var ret = t
+	ptr, _ := t.(*types.Pointer)
+	for ptr != nil {
+		ptrDepth++
+		ret = ptr.Elem()
+		v, ok := ptr.Elem().(*types.Pointer)
+		if ok {
+			ptr = v
+		} else {
+			ptr = nil
+		}
+	}
+
+	return ret, ptrDepth, ptrDepth > 0
+}
+
+func ptrToName(name string, ptrDepth int) string {
+	for ptrDepth > 0 {
+		name = "*" + name
+		ptrDepth--
+	}
+	return name
+}
+
+// matchField find a matched Field in srcStruct with dstField
+func matchField(dstField *types.Var, srcStruct *types.Struct) (matched *types.Var, match bool) {
+	// by name
+	for i := range srcStruct.NumFields() {
+		srcField := srcStruct.Field(i)
+		if !srcField.Exported() {
+			continue
+		}
+		if srcField.Name() == dstField.Name() {
+			return srcField, true
+		}
+		if srcField.Embedded() {
+			if embedStruct, ok := srcField.Type().Underlying().(*types.Struct); ok {
+				if v, ok := matchField(dstField, embedStruct); ok {
+					return v, true
+				}
+			}
+		}
+	}
+	return nil, false
 }
 
 func canCast(from, to *types.Basic) bool {

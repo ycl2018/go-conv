@@ -27,11 +27,21 @@ func Domain2FooToDomainFoo(src *domain2.Foo) (dst *domain.Foo) {
 	}
 	return
 }
+func ModelPetToDomainEmbed(src *model.Pet) (dst *domain.Embed) {
+	if src != nil {
+		dst = new(domain.Embed)
+		dst.C = src.C
+		dst.D = src.D
+	}
+	return
+}
 func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 	if src != nil {
 		dst = new(domain.Pet)
 		dst.ID = src.ID
-		dst.Name = src.Name
+		dst.Name = new(string)
+		*dst.Name = src.Name
+		// omit NamePtr
 		if src.Status != nil {
 			dst.Status = new(domain.PetStatus)
 			*dst.Status = domain.PetStatus(*src.Status)
@@ -98,6 +108,9 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 				dst.MapStringString[tmpK] = tmpV
 			}
 		}
+		dst.A = src.A
+		dst.B = src.B
+		dst.Embed = ModelPetToDomainEmbed(src)
 	}
 	return
 }

@@ -3,7 +3,8 @@ package domain
 type Pet struct {
 	ID uint
 	//Category  Category
-	Name string
+	Name    *string
+	NamePtr *string `storage:"namePtr"`
 	//PhotoUrls []URL
 	Status             *PetStatus
 	Array              [3]*Category `storage:"children"`
@@ -22,8 +23,15 @@ type Pet struct {
 	ByteSliceToString2 []byte
 	ByteSliceToString  string
 	MapStringString    MapStringString
+	A                  string
+	B                  int
+	*Embed
 }
 
+type Embed struct {
+	C string
+	D int
+}
 type MapStringString map[string]string
 
 type MyString string

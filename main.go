@@ -85,8 +85,7 @@ func generate(patterns ...string) error {
 		fileToGen := &ast.File{
 			Name: ast.NewIdent(p.Name),
 		}
-		importer := NewImporter()
-		builder := NewBuilder(fileToGen, p.Types, importer)
+		builder := NewBuilder(fileToGen, p.Types)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
 			fnName := builder.BuildFunc(dst.Type(), src.Type())

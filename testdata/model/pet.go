@@ -6,6 +6,7 @@ type Pet struct {
 	ID uint `storage:"id"`
 	//Category  Category `storage:"category"`
 	Name string `storage:"name"`
+	//NamePtr *string `storage:"namePtr"`
 	//PhotoUrls []string `storage:"photoUrls"`
 	Status             *string             `storage:"status"`
 	Array              [3]*domain.Category `storage:"children"`
@@ -25,6 +26,14 @@ type Pet struct {
 	ByteSliceToString  []byte
 	ByteSliceToString2 MyString
 	MapStringString    map[string]string
+	Embed
+	C string
+	D int
 }
 
 type MyString string
+
+type Embed struct {
+	A string
+	B int
+}
