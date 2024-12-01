@@ -19,7 +19,7 @@ type Convergen interface {
 }
 
 // ModelToDomain
-// go-conv:conv
+// go-conv:generate
 // go-conv:apply ArrayToSlice:slice
 var ModelToDomain func(*model.Pet) *domain.Pet
 
