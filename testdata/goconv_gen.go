@@ -8,6 +8,25 @@ import (
 	domain2 "go-conv/testdata/model/domain"
 )
 
+func Domain2CategoryToDomainCategory(src *domain2.Category) (dst *domain.Category) {
+	if src != nil {
+		dst = new(domain.Category)
+		dst.CategoryID = src.CategoryID
+		dst.Name = src.Name
+		dst.Foo = Domain2FooToDomainFoo(src.Foo)
+	}
+	return
+}
+func Domain2FooToDomainFoo(src *domain2.Foo) (dst *domain.Foo) {
+	if src != nil {
+		dst = new(domain.Foo)
+		if src.Bar != nil {
+			dst.Bar = new(string)
+			*dst.Bar = *src.Bar
+		}
+	}
+	return
+}
 func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 	if src != nil {
 		dst = new(domain.Pet)
@@ -67,7 +86,7 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 		dst.StringConvert2 = domain.MyString(src.StringConvert2)
 		dst.StringConvert = string(src.StringConvert)
 		dst.NumberCast = uint64(src.NumberCast)
-		// omit dst.ByteSliceToString2
+		dst.ByteSliceToString2 = []byte(src.ByteSliceToString2)
 		dst.ByteSliceToString = string(src.ByteSliceToString)
 		if len(src.MapStringString) > 0 {
 			dst.MapStringString = make(map[string]string, len(src.MapStringString))
@@ -82,22 +101,6 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 	}
 	return
 }
-func Domain2CategoryToDomainCategory(src *domain2.Category) (dst *domain.Category) {
-	if src != nil {
-		dst = new(domain.Category)
-		dst.CategoryID = src.CategoryID
-		dst.Name = src.Name
-		dst.Foo = Domain2FooToDomainFoo(src.Foo)
-	}
-	return
-}
-func Domain2FooToDomainFoo(src *domain2.Foo) (dst *domain.Foo) {
-	if src != nil {
-		dst = new(domain.Foo)
-		if src.Bar != nil {
-			dst.Bar = new(string)
-			*dst.Bar = *src.Bar
-		}
-	}
-	return
+func init() {
+	ModelToDomain = ModelPetToDomainPet
 }

@@ -3,8 +3,8 @@
 # Feature
 
 - [x] 自动处理同名包
-- [x] 子结构体自动生成转换函数
-- [ ] embed struct
+- [ ] 避免生成的函数和现有冲突
+- [ ] 支持embed struct
 - [x] 支持自定义基础类型自动强转
 - [x] 支持基础类型自动转型
 - [x] 支持string <-> []byte/[]rune 互转

@@ -56,6 +56,8 @@ func main() {
 const parserLoadMode = packages.NeedName | packages.NeedImports | packages.NeedDeps |
 	packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
 
+const GENFILENAME = "goconv_gen.go"
+
 func generate(patterns ...string) error {
 
 	loadConf := &packages.Config{
@@ -83,30 +85,39 @@ func generate(patterns ...string) error {
 		fileToGen := &ast.File{
 			Name: ast.NewIdent(p.Name),
 		}
-		impt := NewImporter()
-		builder := NewBuilder(fileToGen, p.Types, impt)
+		importer := NewImporter()
+		builder := NewBuilder(fileToGen, p.Types, importer)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
-			builder.BuildFunc(dst.Type(), src.Type())
+			fnName := builder.BuildFunc(dst.Type(), src.Type())
+			for _, name := range v.VarSpec.Names {
+				builder.AddInit(name.Name, fnName)
+			}
 		}
 		content, err := builder.Generate()
 		if err != nil {
 			return err
 		}
-		genFileName := "goconv_gen.go"
-		// write file
-		dir, err := os.Getwd()
+		err = writeToFile(p, GENFILENAME, content)
 		if err != nil {
-			return fmt.Errorf("[go-conv] get working dir err:\n%w", err)
+			return err
 		}
-		fileName := filepath.Join(filepath.Dir(dir), p.PkgPath, genFileName)
-		if *dryRun {
-			fmt.Fprintf(stderr, "[go-conv] generate to %s content:\n\n%s", fileName, content)
-		} else {
-			err = os.WriteFile(fileName, content, 0644)
-			if err != nil {
-				return fmt.Errorf("[go-conv] write file %s err:%w", fileName, err)
-			}
+	}
+	return nil
+}
+
+func writeToFile(p *packages.Package, genFileName string, content []byte) error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("[go-conv] get working dir err:\n%w", err)
+	}
+	fileName := filepath.Join(filepath.Dir(dir), p.PkgPath, genFileName)
+	if *dryRun {
+		fmt.Fprintf(stderr, "[go-conv] generate to %s content:\n\n%s", fileName, content)
+	} else {
+		err = os.WriteFile(fileName, content, 0644)
+		if err != nil {
+			return fmt.Errorf("[go-conv] write file %s err:%w", fileName, err)
 		}
 	}
 	return nil
