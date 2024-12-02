@@ -105,16 +105,15 @@ func generate(patterns ...string) error {
 	return nil
 }
 
-func writeToFile(p *packages.Package, genFileName string, content []byte) error {
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("[go-conv] get working dir err:\n%w", err)
-	}
-	fileName := filepath.Join(filepath.Dir(dir), p.PkgPath, genFileName)
+func writeToFile(p *Package, genFileName string, content []byte) error {
+	fileName := filepath.Join(p.Dir, genFileName)
 	if *dryRun {
-		fmt.Fprintf(stderr, "[go-conv] generate to %s content:\n\n%s", fileName, content)
+		fmt.Fprintf(stderr,
+			"************* [go-conv] generated %s START *************\n\n%s"+
+				"\n************* [go-conv] generated END *************\n",
+			fileName, content)
 	} else {
-		err = os.WriteFile(fileName, content, 0644)
+		err := os.WriteFile(fileName, content, 0644)
 		if err != nil {
 			return fmt.Errorf("[go-conv] write file %s err:%w", fileName, err)
 		}

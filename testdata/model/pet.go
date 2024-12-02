@@ -1,12 +1,12 @@
 package model
 
-import "go-conv/testdata/model/domain"
+import "github.com/ycl2018/go-conv/testdata/model/domain"
 
 type Pet struct {
 	ID uint `storage:"id"`
 	//Category  Category `storage:"category"`
-	Name string `storage:"name"`
-	//NamePtr *string `storage:"namePtr"`
+	Name    string  `storage:"name"`
+	NamePtr *string `storage:"namePtr"`
 	//PhotoUrls []string `storage:"photoUrls"`
 	Status             *string             `storage:"status"`
 	Array              [3]*domain.Category `storage:"children"`

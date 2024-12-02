@@ -10,5 +10,9 @@ import (
 type ConvVar struct {
 	VarSpec   *ast.ValueSpec
 	Signature *types.Signature
-	Package   *packages.Package
+}
+
+type Package struct {
+	*packages.Package
+	Dir string
 }

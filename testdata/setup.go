@@ -1,8 +1,8 @@
 package testdata
 
 import (
-	"go-conv/testdata/domain"
-	"go-conv/testdata/model"
+	"github.com/ycl2018/go-conv/testdata/domain"
+	"github.com/ycl2018/go-conv/testdata/model"
 )
 
 // ModelToDomain

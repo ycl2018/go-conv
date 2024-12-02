@@ -3,9 +3,9 @@
 package testdata
 
 import (
-	"go-conv/testdata/model"
-	"go-conv/testdata/domain"
-	domain2 "go-conv/testdata/model/domain"
+	"github.com/ycl2018/go-conv/testdata/model"
+	"github.com/ycl2018/go-conv/testdata/domain"
+	domain2 "github.com/ycl2018/go-conv/testdata/model/domain"
 )
 
 func Domain2CategoryToDomainCategory(src *domain2.Category) (dst *domain.Category) {
@@ -41,7 +41,10 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 		dst.ID = src.ID
 		dst.Name = new(string)
 		*dst.Name = src.Name
-		// omit NamePtr
+		if src.NamePtr != nil {
+			dst.NamePtr = new(string)
+			*dst.NamePtr = *src.NamePtr
+		}
 		if src.Status != nil {
 			dst.Status = new(domain.PetStatus)
 			*dst.Status = domain.PetStatus(*src.Status)
