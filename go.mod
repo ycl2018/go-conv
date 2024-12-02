@@ -1,4 +1,4 @@
-module go-conv
+module github.com/ycl2018/go-conv
 
 go 1.22.0
 

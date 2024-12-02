@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	. "go-conv/internal"
+	. "github.com/ycl2018/go-conv/internal"
 )
 
 // flags
