@@ -16,8 +16,8 @@ import (
 type BuildMode int
 
 const (
-	BuildModeCopy = 1
-	BuildModeConv = 2
+	BuildModeCopy BuildMode = iota + 1
+	BuildModeConv
 )
 
 // Builder a file in a package
