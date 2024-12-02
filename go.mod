@@ -1,6 +1,8 @@
-module go-conv
+module github.com/ycl2018/go-conv
 
-go 1.23
+go 1.22.0
+
+toolchain go1.23.3
 
 require golang.org/x/tools v0.27.0
 
