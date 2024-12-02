@@ -21,5 +21,5 @@ func (l *Logger) Printf(format string, args ...any) {
 	if !l.verbose {
 		return
 	}
-	fmt.Fprintf(l.out, format, args...)
+	fmt.Fprintf(l.out, format+"\n", args...)
 }

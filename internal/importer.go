@@ -6,13 +6,15 @@ import (
 )
 
 type Importer struct {
+	curPkgPath      string
 	pkgToName       map[string]string
 	importedPkgName map[string]int
 	imported        []*types.Package
 }
 
-func NewImporter() *Importer {
+func NewImporter(curPkgPath string) *Importer {
 	return &Importer{
+		curPkgPath:      curPkgPath,
 		pkgToName:       map[string]string{},
 		importedPkgName: map[string]int{},
 	}
@@ -46,11 +48,11 @@ func (i *Importer) ImportType(t types.Type) string {
 		}
 	}
 	resolve(t)
-	if pkgPath == "" {
+	if pkgPath == "" || pkgPath == i.curPkgPath {
 		return typPrefix + typeName
 	}
-	pkgImportName := i.pkgToName[pkgPath]
-	if pkgImportName == "" {
+	pkgImportName, ok := i.pkgToName[pkgPath]
+	if !ok {
 		pkgImportName = pkgName
 		// import pkg name
 		if num, ok := i.importedPkgName[pkgImportName]; ok {
@@ -63,6 +65,7 @@ func (i *Importer) ImportType(t types.Type) string {
 		i.pkgToName[pkgPath] = pkgImportName
 		i.imported = append(i.imported, pkg)
 	}
+
 	name := typPrefix + pkgImportName + "." + typeName
 	return name
 }

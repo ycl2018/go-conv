@@ -46,7 +46,7 @@ func NewBuilder(f *ast.File, types *types.Package, logger *Logger) *Builder {
 	return &Builder{
 		f:               f,
 		types:           types,
-		importer:        NewImporter(),
+		importer:        NewImporter(types.Path()),
 		genFunc:         make(map[string]*ast.FuncDecl),
 		InitFuncBuilder: NewInitFuncBuilder(),
 		logger:          logger,
@@ -288,7 +288,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Struct:
 		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
-			b.logger.Printf("omit %s cause %s type is not a struct", dst.Name(), src.Name())
+			b.logger.Printf("omit %s :%s type is not a struct", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
@@ -588,7 +588,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, assignmentStmt)
 		return stmts
 	default:
-		b.logger.Printf("omit %s: type not support", dst.Name())
+		b.logger.Printf("omit %s :type not support", dst.Name())
 		stmts = append(stmts, buildCommentExpr("omit "+dst.Name()))
 	}
 
@@ -696,7 +696,9 @@ func (b *Builder) fillImport() {
 			spec.Name = ast.NewIdent(name)
 		}
 	}
-	importDecls = append(importDecls, im)
+	if len(im.Specs) > 0 {
+		importDecls = append(importDecls, im)
+	}
 	b.f.Decls = append(importDecls, b.f.Decls...)
 }
 

@@ -2,100 +2,32 @@
 
 package testdata
 
-import (
-	"github.com/ycl2018/go-conv/testdata/model"
-	"github.com/ycl2018/go-conv/testdata/domain"
-	domain2 "github.com/ycl2018/go-conv/testdata/model/domain"
-)
-
-func Domain2CategoryToDomainCategory(src *domain2.Category) (dst *domain.Category) {
+func CopyFooToBar(src *Foo) (dst *Bar) {
 	if src != nil {
-		dst = new(domain.Category)
-		dst.CategoryID = src.CategoryID
-		dst.Name = src.Name
-		dst.Foo = (*domain.Foo)(src.Foo)
-	}
-	return
-}
-func ModelPetToDomainEmbed(src *model.Pet) (dst *domain.Embed) {
-	if src != nil {
-		dst = new(domain.Embed)
-		dst.C = src.C
-		dst.D = src.D
-	}
-	return
-}
-func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
-	if src != nil {
-		dst = new(domain.Pet)
-		dst.ID = src.ID
-		dst.Name = &src.Name
-		dst.NamePtr = src.NamePtr
-		dst.Status = (*domain.PetStatus)(src.Status)
-		for i := 0; i < 3 && i < len(src.Array); i++ {
-			dst.Array[i] = Domain2CategoryToDomainCategory(src.Array[i])
-		}
-		if len(src.Slices) > 0 {
-			dst.Slices = make([]*domain.Category, len(src.Slices))
-			for i := 0; i < len(src.Slices); i++ {
-				dst.Slices[i] = Domain2CategoryToDomainCategory(src.Slices[i])
+		dst = new(Bar)
+		dst.Str = src.Str
+		if len(src.Slice) > 0 {
+			dst.Slice = make([]string, len(src.Slice))
+			for i := 0; i < len(src.Slice); i++ {
+				dst.Slice[i] = src.Slice[i]
 			}
 		}
-		if len(src.Maps) > 0 {
-			dst.Maps = make(map[string]*domain.Category, len(src.Maps))
-			for k, v := range src.Maps {
+		if len(src.Map) > 0 {
+			dst.Map = make(map[string]string, len(src.Map))
+			for k, v := range src.Map {
 				var tmpK string
-				var tmpV *domain.Category
+				var tmpV string
 				tmpK = k
-				tmpV = Domain2CategoryToDomainCategory(v)
-				dst.Maps[tmpK] = tmpV
+				tmpV = v
+				dst.Map[tmpK] = tmpV
 			}
 		}
-		dst.Next = ModelPetToDomainPet(src.Next)
-		dst.PtrToStruct.CategoryID = src.PtrToStruct.CategoryID
-		dst.PtrToStruct.Name = src.PtrToStruct.Name
-		dst.PtrToStruct.Foo = (*domain.Foo)(src.PtrToStruct.Foo)
-		dst.StructToPtr = Domain2CategoryToDomainCategory(&src.StructToPtr)
-		if len(src.SlicesStruct) > 0 {
-			dst.SlicesStruct = make([]*domain.Category, len(src.SlicesStruct))
-			for i := 0; i < len(src.SlicesStruct); i++ {
-				dst.SlicesStruct[i] = Domain2CategoryToDomainCategory(&src.SlicesStruct[i])
-			}
-		}
-		if len(src.SlicesPtr) > 0 {
-			dst.SlicesPtr = make([]domain.Category, len(src.SlicesPtr))
-			for i := 0; i < len(src.SlicesPtr); i++ {
-				dst.SlicesPtr[i].CategoryID = src.SlicesPtr[i].CategoryID
-				dst.SlicesPtr[i].Name = src.SlicesPtr[i].Name
-				dst.SlicesPtr[i].Foo = (*domain.Foo)(src.SlicesPtr[i].Foo)
-			}
-		}
-		for i := 0; i < 3 && i < len(src.ArrayToSlice); i++ {
-			dst.ArrayToSlice[i] = Domain2CategoryToDomainCategory(src.ArrayToSlice[i])
-		}
-		if len(src.SliceToArray) > 0 {
-			dst.SliceToArray = make([]*domain.Category, len(src.SliceToArray))
-			for i := 0; i < len(src.SliceToArray); i++ {
-				dst.SliceToArray[i] = Domain2CategoryToDomainCategory(src.SliceToArray[i])
-			}
-		}
-		dst.StringConvert2 = (domain.MyString)(src.StringConvert2)
-		dst.StringConvert = string(src.StringConvert)
-		dst.NumberCast = uint64(src.NumberCast)
-		dst.ByteSliceToString2 = []byte(src.ByteSliceToString2)
-		dst.ByteSliceToString = string(src.ByteSliceToString)
-		dst.MapStringString = src.MapStringString
-		dst.A = src.A
-		dst.B = src.B
-		dst.Embed = ModelPetToDomainEmbed(src)
-		dst.Common = (*domain.MyCommon)(src.Common)
-		dst.Common2.A = src.Common2.A
-		dst.Common2.B = src.Common2.B
-		dst.Common2.C = src.Common2.C
-		dst.Common3 = (*domain.MyCommon)(&src.Common3)
+		dst.Pointer = new(string)
+		*dst.Pointer = src.Pointer
+		dst.Alias = StringAlias(src.Alias)
 	}
 	return
 }
 func init() {
-	ModelToDomain = ModelPetToDomainPet
+	Foo2Bar = CopyFooToBar
 }
