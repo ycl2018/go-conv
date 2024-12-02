@@ -68,14 +68,14 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 }
 
 func parseConfigFromComment(doc *ast.CommentGroup) BuildConfig {
-	var ret = BuildConfig{
-		BuildMode: BuildModeCopy,
-	}
+	var ret = DefaultBuildConfig
 	if doc == nil {
 		return ret
 	}
 	for _, comment := range doc.List {
-		if strings.Contains(comment.Text, "go-conv:conv") {
+		if strings.Contains(comment.Text, "go-conv:copy") {
+			ret.BuildMode = BuildModeCopy
+		} else if strings.Contains(comment.Text, "go-conv:conv") {
 			ret.BuildMode = BuildModeConv
 		}
 	}

@@ -22,3 +22,7 @@ type Package struct {
 type BuildConfig struct {
 	BuildMode BuildMode
 }
+
+var DefaultBuildConfig = BuildConfig{
+	BuildMode: BuildModeConv,
+}

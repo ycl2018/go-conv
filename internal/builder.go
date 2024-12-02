@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,15 +29,17 @@ type Builder struct {
 	genFunc     map[string]*ast.FuncDecl
 	rootNode    bool
 	buildConfig BuildConfig
+	logger      *Logger
 }
 
-func NewBuilder(f *ast.File, types *types.Package) *Builder {
+func NewBuilder(f *ast.File, types *types.Package, logger *Logger) *Builder {
 	return &Builder{
 		f:               f,
 		types:           types,
 		importer:        NewImporter(),
 		genFunc:         make(map[string]*ast.FuncDecl),
-		InitFuncBuilder: NewInitBuilder(),
+		InitFuncBuilder: NewInitFuncBuilder(),
+		logger:          logger,
 	}
 }
 
@@ -276,7 +277,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Struct:
 		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
-			log.Printf("src type is not a struct:%s", src.String())
+			b.logger.Printf("omit src type is not a struct:%s", src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
@@ -303,7 +304,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
 			} else {
-				log.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
+				b.logger.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
 		}
@@ -311,7 +312,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Array:
 		srcArrType, _, ok := convSliceToArray(src.Type())
 		if !ok {
-			log.Printf("src type is not a array/slice:%s", src.String())
+			b.logger.Printf("src type is not a array/slice:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		// for i := 0; i<n ; i++ {}
@@ -352,7 +353,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 		srcType, ok := src.Type().Underlying().(*types.Map)
 		if !ok {
-			log.Printf("src type is not a map:%s", src.String())
+			b.logger.Printf("src type is not a map:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -466,7 +467,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					return append(stmts, assignStmt)
 				}
 			}
-			log.Printf("src type is not a slice/array:%s", src.String())
+			b.logger.Printf("src type is not a slice/array:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -560,7 +561,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			needCast = true
 		}
 		if !valid {
-			log.Printf("src type is not a basic:%s", src.String())
+			b.logger.Printf("src type is not a basic:%s", src.String())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		var srcName = ptrToName(src.Name(), ptrDepth)

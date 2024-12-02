@@ -9,7 +9,7 @@ type InitFuncBuilder struct {
 	varToFunc map[string]string
 }
 
-func NewInitBuilder() *InitFuncBuilder {
+func NewInitFuncBuilder() *InitFuncBuilder {
 	return &InitFuncBuilder{
 		varToFunc: make(map[string]string),
 	}
