@@ -20,6 +20,16 @@ const (
 	BuildModeConv
 )
 
+func (m BuildMode) String() string {
+	switch m {
+	case BuildModeCopy:
+		return "copyMode"
+	case BuildModeConv:
+		return "convMode"
+	}
+	return "_"
+}
+
 // Builder a file in a package
 type Builder struct {
 	*InitFuncBuilder
@@ -46,6 +56,7 @@ func NewBuilder(f *ast.File, types *types.Package, logger *Logger) *Builder {
 func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcName string) {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
 	funcName = b.GenFuncName(src, dst, buildConfig)
+	b.logger.Printf("generate function:%s by %s", funcName, buildConfig)
 	b.rootNode = true
 	b.buildConfig = buildConfig
 	// add a func
@@ -191,7 +202,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Pointer:
 		elemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 		_, srcIsStruct := isStruct(elemType)
-		// check if has generated func
+		// check has generated func
 		if named, ok := dstType.Elem().(*types.Named); ok && srcIsStruct {
 			if _, ok := named.Underlying().(*types.Struct); ok && !b.rootNode {
 				funcName := b.GenFuncName(elemType, dst.Type(), b.buildConfig)
@@ -261,7 +272,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		switch dstUnderType.(type) {
 		case *types.Basic:
 			if src.Type().String() != dst.Type().String() {
-				// we should de Pointer src type, because Named Dst will lose it's real type in next node.
+				// we should de Pointer src type, :Named Dst will lose it's real type in next node.
 				elemType, ptrDepth, isPtr := dePointer(src.Type())
 				if isPtr {
 					srcType = elemType
@@ -277,7 +288,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Struct:
 		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
-			b.logger.Printf("omit src type is not a struct:%s", src.Name())
+			b.logger.Printf("omit %s cause %s type is not a struct", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
@@ -304,7 +315,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
 			} else {
-				b.logger.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
+				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
 		}
@@ -312,7 +323,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Array:
 		srcArrType, _, ok := convSliceToArray(src.Type())
 		if !ok {
-			b.logger.Printf("src type is not a array/slice:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		// for i := 0; i<n ; i++ {}
@@ -353,7 +364,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 		srcType, ok := src.Type().Underlying().(*types.Map)
 		if !ok {
-			b.logger.Printf("src type is not a map:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a map", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -467,7 +478,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					return append(stmts, assignStmt)
 				}
 			}
-			b.logger.Printf("src type is not a slice/array:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -561,7 +572,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			needCast = true
 		}
 		if !valid {
-			b.logger.Printf("src type is not a basic:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not basic", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		var srcName = ptrToName(src.Name(), ptrDepth)
@@ -577,6 +588,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, assignmentStmt)
 		return stmts
 	default:
+		b.logger.Printf("omit %s: type not support", dst.Name())
 		stmts = append(stmts, buildCommentExpr("omit "+dst.Name()))
 	}
 

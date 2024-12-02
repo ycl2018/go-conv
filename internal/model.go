@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 
@@ -21,6 +22,10 @@ type Package struct {
 
 type BuildConfig struct {
 	BuildMode BuildMode
+}
+
+func (b BuildConfig) String() string {
+	return fmt.Sprintf("BuildConfig<BuildMode: %s>", b.BuildMode)
 }
 
 var DefaultBuildConfig = BuildConfig{

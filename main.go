@@ -42,7 +42,6 @@ Flags:
 
 func main() {
 	flag.Parse()
-	flag.Usage()
 	if len(flag.Args()) == 0 {
 		fmt.Fprint(stderr, usage)
 		os.Exit(1)
