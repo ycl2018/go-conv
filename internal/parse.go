@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) {
@@ -35,6 +36,7 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 					if !isTarget {
 						continue
 					}
+					var buildConfig = parseConfigFromComment(gd.Doc)
 					for _, spec := range gd.Specs {
 						if vs, ok := spec.(*ast.ValueSpec); ok {
 							tye := pkg.TypesInfo.TypeOf(vs.Type)
@@ -51,8 +53,9 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 									p.Dir = filepath.Dir(fileName)
 								}
 								varsToConv[p] = append(varsToConv[p], &ConvVar{
-									VarSpec:   vs,
-									Signature: sig,
+									VarSpec:     vs,
+									Signature:   sig,
+									BuildConfig: buildConfig,
 								})
 							}
 						}
@@ -62,4 +65,19 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 		}
 	}
 	return varsToConv, nil
+}
+
+func parseConfigFromComment(doc *ast.CommentGroup) BuildConfig {
+	var ret = BuildConfig{
+		BuildMode: BuildModeCopy,
+	}
+	if doc == nil {
+		return ret
+	}
+	for _, comment := range doc.List {
+		if strings.Contains(comment.Text, "go-conv:conv") {
+			ret.BuildMode = BuildModeConv
+		}
+	}
+	return ret
 }

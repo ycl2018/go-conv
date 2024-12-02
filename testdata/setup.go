@@ -7,5 +7,10 @@ import (
 
 // ModelToDomain
 // go-conv:generate
-// go-conv:apply ArrayToSlice:slice
+// go-conv:conv
 var ModelToDomain func(*model.Pet) *domain.Pet
+
+// ModelToDomain
+// go-conv:generate
+// go-conv:conv
+//var ModelToDomain func(*model.PetNew) *domain.PetNew

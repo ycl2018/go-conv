@@ -6,10 +6,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"golang.org/x/tools/go/packages"
 	"io"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/tools/go/packages"
 
 	. "github.com/ycl2018/go-conv/internal"
 )
@@ -88,7 +89,7 @@ func generate(patterns ...string) error {
 		builder := NewBuilder(fileToGen, p.Types)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
-			fnName := builder.BuildFunc(dst.Type(), src.Type())
+			fnName := builder.BuildFunc(dst.Type(), src.Type(), v.BuildConfig)
 			for _, name := range v.VarSpec.Names {
 				builder.AddInit(name.Name, fnName)
 			}

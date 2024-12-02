@@ -1,5 +1,7 @@
 package domain
 
+import "github.com/ycl2018/go-conv/testdata/common"
+
 type Pet struct {
 	ID uint
 	//Category  Category
@@ -22,11 +24,20 @@ type Pet struct {
 	NumberCast         uint64
 	ByteSliceToString2 []byte
 	ByteSliceToString  string
-	MapStringString    MapStringString
+	MapStringString    map[string]string
 	A                  string
 	B                  int
 	*Embed
+	Common  *MyCommon
+	Common2 MyCommon
+	Common3 *MyCommon
 }
+
+type PetNew struct {
+	Common *MyCommon
+}
+
+type MyCommon common.Common
 
 type Embed struct {
 	C string

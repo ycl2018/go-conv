@@ -13,17 +13,7 @@ func Domain2CategoryToDomainCategory(src *domain2.Category) (dst *domain.Categor
 		dst = new(domain.Category)
 		dst.CategoryID = src.CategoryID
 		dst.Name = src.Name
-		dst.Foo = Domain2FooToDomainFoo(src.Foo)
-	}
-	return
-}
-func Domain2FooToDomainFoo(src *domain2.Foo) (dst *domain.Foo) {
-	if src != nil {
-		dst = new(domain.Foo)
-		if src.Bar != nil {
-			dst.Bar = new(string)
-			*dst.Bar = *src.Bar
-		}
+		dst.Foo = (*domain.Foo)(src.Foo)
 	}
 	return
 }
@@ -39,16 +29,9 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 	if src != nil {
 		dst = new(domain.Pet)
 		dst.ID = src.ID
-		dst.Name = new(string)
-		*dst.Name = src.Name
-		if src.NamePtr != nil {
-			dst.NamePtr = new(string)
-			*dst.NamePtr = *src.NamePtr
-		}
-		if src.Status != nil {
-			dst.Status = new(domain.PetStatus)
-			*dst.Status = domain.PetStatus(*src.Status)
-		}
+		dst.Name = &src.Name
+		dst.NamePtr = src.NamePtr
+		dst.Status = (*domain.PetStatus)(src.Status)
 		for i := 0; i < 3 && i < len(src.Array); i++ {
 			dst.Array[i] = Domain2CategoryToDomainCategory(src.Array[i])
 		}
@@ -71,7 +54,7 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 		dst.Next = ModelPetToDomainPet(src.Next)
 		dst.PtrToStruct.CategoryID = src.PtrToStruct.CategoryID
 		dst.PtrToStruct.Name = src.PtrToStruct.Name
-		dst.PtrToStruct.Foo = Domain2FooToDomainFoo(src.PtrToStruct.Foo)
+		dst.PtrToStruct.Foo = (*domain.Foo)(src.PtrToStruct.Foo)
 		dst.StructToPtr = Domain2CategoryToDomainCategory(&src.StructToPtr)
 		if len(src.SlicesStruct) > 0 {
 			dst.SlicesStruct = make([]*domain.Category, len(src.SlicesStruct))
@@ -84,7 +67,7 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 			for i := 0; i < len(src.SlicesPtr); i++ {
 				dst.SlicesPtr[i].CategoryID = src.SlicesPtr[i].CategoryID
 				dst.SlicesPtr[i].Name = src.SlicesPtr[i].Name
-				dst.SlicesPtr[i].Foo = Domain2FooToDomainFoo(src.SlicesPtr[i].Foo)
+				dst.SlicesPtr[i].Foo = (*domain.Foo)(src.SlicesPtr[i].Foo)
 			}
 		}
 		for i := 0; i < 3 && i < len(src.ArrayToSlice); i++ {
@@ -96,24 +79,20 @@ func ModelPetToDomainPet(src *model.Pet) (dst *domain.Pet) {
 				dst.SliceToArray[i] = Domain2CategoryToDomainCategory(src.SliceToArray[i])
 			}
 		}
-		dst.StringConvert2 = domain.MyString(src.StringConvert2)
+		dst.StringConvert2 = (domain.MyString)(src.StringConvert2)
 		dst.StringConvert = string(src.StringConvert)
 		dst.NumberCast = uint64(src.NumberCast)
 		dst.ByteSliceToString2 = []byte(src.ByteSliceToString2)
 		dst.ByteSliceToString = string(src.ByteSliceToString)
-		if len(src.MapStringString) > 0 {
-			dst.MapStringString = make(map[string]string, len(src.MapStringString))
-			for k, v := range src.MapStringString {
-				var tmpK string
-				var tmpV string
-				tmpK = k
-				tmpV = v
-				dst.MapStringString[tmpK] = tmpV
-			}
-		}
+		dst.MapStringString = src.MapStringString
 		dst.A = src.A
 		dst.B = src.B
 		dst.Embed = ModelPetToDomainEmbed(src)
+		dst.Common = (*domain.MyCommon)(src.Common)
+		dst.Common2.A = src.Common2.A
+		dst.Common2.B = src.Common2.B
+		dst.Common2.C = src.Common2.C
+		dst.Common3 = (*domain.MyCommon)(&src.Common3)
 	}
 	return
 }

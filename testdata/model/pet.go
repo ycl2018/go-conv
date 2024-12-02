@@ -1,6 +1,9 @@
 package model
 
-import "github.com/ycl2018/go-conv/testdata/model/domain"
+import (
+	"github.com/ycl2018/go-conv/testdata/common"
+	"github.com/ycl2018/go-conv/testdata/model/domain"
+)
 
 type Pet struct {
 	ID uint `storage:"id"`
@@ -27,8 +30,15 @@ type Pet struct {
 	ByteSliceToString2 MyString
 	MapStringString    map[string]string
 	Embed
-	C string
-	D int
+	C       string
+	D       int
+	Common  *common.Common
+	Common2 *common.Common
+	Common3 common.Common
+}
+
+type PetNew struct {
+	Common *common.Common
 }
 
 type MyString string

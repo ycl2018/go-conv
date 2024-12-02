@@ -14,30 +14,39 @@ import (
 	"unicode"
 )
 
+type BuildMode int
+
+const (
+	BuildModeCopy = 1
+	BuildModeConv = 2
+)
+
 // Builder a file in a package
 type Builder struct {
-	*InitBuilder
-	f        *ast.File
-	types    *types.Package
-	importer *Importer
-	genFunc  map[string]*ast.FuncDecl
-	rootNode bool
+	*InitFuncBuilder
+	f           *ast.File
+	types       *types.Package
+	importer    *Importer
+	genFunc     map[string]*ast.FuncDecl
+	rootNode    bool
+	buildConfig BuildConfig
 }
 
 func NewBuilder(f *ast.File, types *types.Package) *Builder {
 	return &Builder{
-		f:           f,
-		types:       types,
-		importer:    NewImporter(),
-		genFunc:     make(map[string]*ast.FuncDecl),
-		InitBuilder: NewInitBuilder(),
+		f:               f,
+		types:           types,
+		importer:        NewImporter(),
+		genFunc:         make(map[string]*ast.FuncDecl),
+		InitFuncBuilder: NewInitBuilder(),
 	}
 }
 
-func (b *Builder) BuildFunc(dst, src types.Type) (funcName string) {
+func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcName string) {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
-	funcName = b.GenFuncName(src, dst)
+	funcName = b.GenFuncName(src, dst, buildConfig)
 	b.rootNode = true
+	b.buildConfig = buildConfig
 	// add a func
 	fn := &ast.FuncDecl{
 		Name: &ast.Ident{
@@ -115,19 +124,76 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, conved, ok bool) {
 	return nil, false, false
 }
 
+func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
+	var assignStmt = &ast.AssignStmt{
+		Tok: token.ASSIGN,
+	}
+	dstTypeString, srcTypeString := dst.Type().String(), src.Type().String()
+	// exactly same type
+	if dstTypeString == srcTypeString {
+		assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+		assignStmt.Rhs = []ast.Expr{ast.NewIdent(src.Name())}
+		return []ast.Stmt{assignStmt}, true
+	}
+	switch dstType := dst.Type().(type) {
+	case *types.Pointer:
+		srcElemType, srcPtrDepth, isSrcPtr := dePointer(src.Type())
+		dstElemType, dstPtrDepth, _ := dePointer(dstType)
+		s1 := srcElemType.Underlying().String()
+		s2 := dstElemType.Underlying().String()
+		if s1 == s2 {
+			if srcPtrDepth == dstPtrDepth {
+				assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+				assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(%s)",
+					b.importer.ImportType(dstType), src.Name(),
+				))}
+				return []ast.Stmt{assignStmt}, true
+			}
+			if !isSrcPtr && dstPtrDepth == 1 {
+				assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+				if srcElemType.String() != dstElemType.String() {
+					// need cast
+					assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(&%s)",
+						b.importer.ImportType(dstType), src.Name(),
+					))}
+				} else {
+					assignStmt.Rhs = []ast.Expr{ast.NewIdent("&" + src.Name())}
+				}
+				return []ast.Stmt{assignStmt}, true
+			}
+		}
+	case *types.Named:
+		dstUnderTypeString := dstType.Underlying().String()
+		srcUnderTypeString := src.Type().Underlying().String()
+		if dstUnderTypeString == srcUnderTypeString {
+			assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+			assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(%s)",
+				b.importer.ImportType(dstType), src.Name(),
+			))}
+			return []ast.Stmt{assignStmt}, true
+		}
+	}
+	return nil, false
+}
+
 func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	defer func() {
 		b.rootNode = false
 	}()
 	var stmts []ast.Stmt
+	if b.buildConfig.BuildMode == BuildModeConv {
+		if ret, ok := b._shallowCopy(dst, src); ok {
+			return ret
+		}
+	}
 	switch dstType := dst.Type().(type) {
 	case *types.Pointer:
-		elemType, ptrDepth, srcIsPtr := dPtr(src.Type())
+		elemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 		_, srcIsStruct := isStruct(elemType)
 		// check if has generated func
 		if named, ok := dstType.Elem().(*types.Named); ok && srcIsStruct {
 			if _, ok := named.Underlying().(*types.Struct); ok && !b.rootNode {
-				funcName := b.GenFuncName(elemType, dst.Type())
+				funcName := b.GenFuncName(elemType, dst.Type(), b.buildConfig)
 				convedSrcName := func() string {
 					if !srcIsPtr {
 						return "&" + src.Name()
@@ -145,14 +211,14 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					}},
 				}
 				if _, ok := b.genFunc[funcName]; !ok {
-					b.BuildFunc(dst.Type(), types.NewPointer(elemType))
+					b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
 				}
 				stmts = append(stmts, assignStmt)
 				return stmts
 			}
 		}
 
-		_, depth, _ := dPtr(dstType)
+		_, depth, _ := dePointer(dstType)
 		dstName := ptrToName(dst.Name(), depth)
 		dstElemVar := types.NewVar(0, b.types, dstName, dstType.Elem())
 		srcElemVar := types.NewVar(0, b.types, src.Name(), src.Type())
@@ -195,7 +261,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		case *types.Basic:
 			if src.Type().String() != dst.Type().String() {
 				// we should de Pointer src type, because Named Dst will lose it's real type in next node.
-				elemType, ptrDepth, isPtr := dPtr(src.Type())
+				elemType, ptrDepth, isPtr := dePointer(src.Type())
 				if isPtr {
 					srcType = elemType
 				}
@@ -466,7 +532,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, ifStmt)
 		return stmts
 	case *types.Basic:
-		underType, ptrDepth, _ := dPtr(src.Type())
+		underType, ptrDepth, _ := dePointer(src.Type())
 		srcType, ok := underType.(*types.Basic)
 		var valid, needCast bool
 		if !ok {
@@ -516,8 +582,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	return stmts
 }
 
-func dPtr(t types.Type) (types.Type, int, bool) {
-	var ptrDepth int
+func dePointer(t types.Type) (elemType types.Type, ptrDepth int, isPtr bool) {
 	var ret = t
 	ptr, _ := t.(*types.Pointer)
 	for ptr != nil {
@@ -647,7 +712,13 @@ func cleanName(name string) string {
 	return s.String()
 }
 
-func (b *Builder) GenFuncName(src, dst types.Type) string {
+func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) string {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
+	switch buildConfig.BuildMode {
+	case BuildModeConv:
+		// default
+	case BuildModeCopy:
+		return "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+	}
 	return cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
 }
