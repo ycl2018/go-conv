@@ -5,21 +5,21 @@ import (
 	"go/token"
 )
 
-type InitBuilder struct {
+type InitFuncBuilder struct {
 	varToFunc map[string]string
 }
 
-func NewInitBuilder() *InitBuilder {
-	return &InitBuilder{
+func NewInitFuncBuilder() *InitFuncBuilder {
+	return &InitFuncBuilder{
 		varToFunc: make(map[string]string),
 	}
 }
 
-func (i *InitBuilder) AddInit(varName, funcName string) {
+func (i *InitFuncBuilder) AddInit(varName, funcName string) {
 	i.varToFunc[varName] = funcName
 }
 
-func (i *InitBuilder) GenInit() *ast.FuncDecl {
+func (i *InitFuncBuilder) GenInit() *ast.FuncDecl {
 	var initFuncDecl = &ast.FuncDecl{
 		Name: ast.NewIdent("init"),
 		Type: &ast.FuncType{},

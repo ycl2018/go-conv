@@ -7,37 +7,58 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
 )
 
-// Builder a file in a package
-type Builder struct {
-	*InitBuilder
-	f        *ast.File
-	types    *types.Package
-	importer *Importer
-	genFunc  map[string]*ast.FuncDecl
-	rootNode bool
+type BuildMode int
+
+const (
+	BuildModeCopy BuildMode = iota + 1
+	BuildModeConv
+)
+
+func (m BuildMode) String() string {
+	switch m {
+	case BuildModeCopy:
+		return "copyMode"
+	case BuildModeConv:
+		return "convMode"
+	}
+	return "_"
 }
 
-func NewBuilder(f *ast.File, types *types.Package) *Builder {
+// Builder a file in a package
+type Builder struct {
+	*InitFuncBuilder
+	f           *ast.File
+	types       *types.Package
+	importer    *Importer
+	genFunc     map[string]*ast.FuncDecl
+	rootNode    bool
+	buildConfig BuildConfig
+	logger      *Logger
+}
+
+func NewBuilder(f *ast.File, types *types.Package, logger *Logger) *Builder {
 	return &Builder{
-		f:           f,
-		types:       types,
-		importer:    NewImporter(),
-		genFunc:     make(map[string]*ast.FuncDecl),
-		InitBuilder: NewInitBuilder(),
+		f:               f,
+		types:           types,
+		importer:        NewImporter(types.Path()),
+		genFunc:         make(map[string]*ast.FuncDecl),
+		InitFuncBuilder: NewInitFuncBuilder(),
+		logger:          logger,
 	}
 }
 
-func (b *Builder) BuildFunc(dst, src types.Type) (funcName string) {
+func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcName string) {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
-	funcName = b.GenFuncName(src, dst)
+	funcName = b.GenFuncName(src, dst, buildConfig)
+	b.logger.Printf("generate function:%s by %s", funcName, buildConfig)
 	b.rootNode = true
+	b.buildConfig = buildConfig
 	// add a func
 	fn := &ast.FuncDecl{
 		Name: &ast.Ident{
@@ -115,19 +136,76 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, conved, ok bool) {
 	return nil, false, false
 }
 
+func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
+	var assignStmt = &ast.AssignStmt{
+		Tok: token.ASSIGN,
+	}
+	dstTypeString, srcTypeString := dst.Type().String(), src.Type().String()
+	// exactly same type
+	if dstTypeString == srcTypeString {
+		assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+		assignStmt.Rhs = []ast.Expr{ast.NewIdent(src.Name())}
+		return []ast.Stmt{assignStmt}, true
+	}
+	switch dstType := dst.Type().(type) {
+	case *types.Pointer:
+		srcElemType, srcPtrDepth, isSrcPtr := dePointer(src.Type())
+		dstElemType, dstPtrDepth, _ := dePointer(dstType)
+		s1 := srcElemType.Underlying().String()
+		s2 := dstElemType.Underlying().String()
+		if s1 == s2 {
+			if srcPtrDepth == dstPtrDepth {
+				assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+				assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(%s)",
+					b.importer.ImportType(dstType), src.Name(),
+				))}
+				return []ast.Stmt{assignStmt}, true
+			}
+			if !isSrcPtr && dstPtrDepth == 1 {
+				assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+				if srcElemType.String() != dstElemType.String() {
+					// need cast
+					assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(&%s)",
+						b.importer.ImportType(dstType), src.Name(),
+					))}
+				} else {
+					assignStmt.Rhs = []ast.Expr{ast.NewIdent("&" + src.Name())}
+				}
+				return []ast.Stmt{assignStmt}, true
+			}
+		}
+	case *types.Named:
+		dstUnderTypeString := dstType.Underlying().String()
+		srcUnderTypeString := src.Type().Underlying().String()
+		if dstUnderTypeString == srcUnderTypeString {
+			assignStmt.Lhs = []ast.Expr{ast.NewIdent(dst.Name())}
+			assignStmt.Rhs = []ast.Expr{ast.NewIdent(fmt.Sprintf("(%s)(%s)",
+				b.importer.ImportType(dstType), src.Name(),
+			))}
+			return []ast.Stmt{assignStmt}, true
+		}
+	}
+	return nil, false
+}
+
 func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	defer func() {
 		b.rootNode = false
 	}()
 	var stmts []ast.Stmt
+	if b.buildConfig.BuildMode == BuildModeConv {
+		if ret, ok := b._shallowCopy(dst, src); ok {
+			return ret
+		}
+	}
 	switch dstType := dst.Type().(type) {
 	case *types.Pointer:
-		elemType, ptrDepth, srcIsPtr := dPtr(src.Type())
+		elemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 		_, srcIsStruct := isStruct(elemType)
-		// check if has generated func
+		// check has generated func
 		if named, ok := dstType.Elem().(*types.Named); ok && srcIsStruct {
 			if _, ok := named.Underlying().(*types.Struct); ok && !b.rootNode {
-				funcName := b.GenFuncName(elemType, dst.Type())
+				funcName := b.GenFuncName(elemType, dst.Type(), b.buildConfig)
 				convedSrcName := func() string {
 					if !srcIsPtr {
 						return "&" + src.Name()
@@ -145,14 +223,14 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					}},
 				}
 				if _, ok := b.genFunc[funcName]; !ok {
-					b.BuildFunc(dst.Type(), types.NewPointer(elemType))
+					b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
 				}
 				stmts = append(stmts, assignStmt)
 				return stmts
 			}
 		}
 
-		_, depth, _ := dPtr(dstType)
+		_, depth, _ := dePointer(dstType)
 		dstName := ptrToName(dst.Name(), depth)
 		dstElemVar := types.NewVar(0, b.types, dstName, dstType.Elem())
 		srcElemVar := types.NewVar(0, b.types, src.Name(), src.Type())
@@ -194,8 +272,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		switch dstUnderType.(type) {
 		case *types.Basic:
 			if src.Type().String() != dst.Type().String() {
-				// we should de Pointer src type, because Named Dst will lose it's real type in next node.
-				elemType, ptrDepth, isPtr := dPtr(src.Type())
+				// we should de Pointer src type, :Named Dst will lose it's real type in next node.
+				elemType, ptrDepth, isPtr := dePointer(src.Type())
 				if isPtr {
 					srcType = elemType
 				}
@@ -210,7 +288,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Struct:
 		srcType, _, ok := convPtrToStruct(src.Type())
 		if !ok {
-			log.Printf("src type is not a struct:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a struct", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
@@ -237,7 +315,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
 			} else {
-				log.Printf("src field %s not found in struct:%s", dstFieldName, srcType.String())
+				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
 			}
 		}
@@ -245,7 +323,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Array:
 		srcArrType, _, ok := convSliceToArray(src.Type())
 		if !ok {
-			log.Printf("src type is not a array/slice:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		// for i := 0; i<n ; i++ {}
@@ -286,7 +364,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 		srcType, ok := src.Type().Underlying().(*types.Map)
 		if !ok {
-			log.Printf("src type is not a map:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a map", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -400,7 +478,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					return append(stmts, assignStmt)
 				}
 			}
-			log.Printf("src type is not a slice/array:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		ifStmt := &ast.IfStmt{
@@ -466,7 +544,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, ifStmt)
 		return stmts
 	case *types.Basic:
-		underType, ptrDepth, _ := dPtr(src.Type())
+		underType, ptrDepth, _ := dePointer(src.Type())
 		srcType, ok := underType.(*types.Basic)
 		var valid, needCast bool
 		if !ok {
@@ -494,7 +572,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			needCast = true
 		}
 		if !valid {
-			log.Printf("src type is not a basic:%s", src.String())
+			b.logger.Printf("omit %s :%s type is not basic", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		var srcName = ptrToName(src.Name(), ptrDepth)
@@ -510,14 +588,14 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, assignmentStmt)
 		return stmts
 	default:
+		b.logger.Printf("omit %s :type not support", dst.Name())
 		stmts = append(stmts, buildCommentExpr("omit "+dst.Name()))
 	}
 
 	return stmts
 }
 
-func dPtr(t types.Type) (types.Type, int, bool) {
-	var ptrDepth int
+func dePointer(t types.Type) (elemType types.Type, ptrDepth int, isPtr bool) {
 	var ret = t
 	ptr, _ := t.(*types.Pointer)
 	for ptr != nil {
@@ -618,7 +696,9 @@ func (b *Builder) fillImport() {
 			spec.Name = ast.NewIdent(name)
 		}
 	}
-	importDecls = append(importDecls, im)
+	if len(im.Specs) > 0 {
+		importDecls = append(importDecls, im)
+	}
 	b.f.Decls = append(importDecls, b.f.Decls...)
 }
 
@@ -647,7 +727,13 @@ func cleanName(name string) string {
 	return s.String()
 }
 
-func (b *Builder) GenFuncName(src, dst types.Type) string {
+func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) string {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
+	switch buildConfig.BuildMode {
+	case BuildModeConv:
+		// default
+	case BuildModeCopy:
+		return "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+	}
 	return cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
 }

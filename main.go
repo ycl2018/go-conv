@@ -6,10 +6,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"golang.org/x/tools/go/packages"
 	"io"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/tools/go/packages"
 
 	. "github.com/ycl2018/go-conv/internal"
 )
@@ -41,7 +42,6 @@ Flags:
 
 func main() {
 	flag.Parse()
-	flag.Usage()
 	if len(flag.Args()) == 0 {
 		fmt.Fprint(stderr, usage)
 		os.Exit(1)
@@ -81,14 +81,16 @@ func generate(patterns ...string) error {
 		return fmt.Errorf("[go-conv] not find valid function to convert in path:%s", patterns)
 	}
 
+	logger := NewLogger(os.Stdout, *verbose)
+
 	for p, vars := range varsToConv {
 		fileToGen := &ast.File{
 			Name: ast.NewIdent(p.Name),
 		}
-		builder := NewBuilder(fileToGen, p.Types)
+		builder := NewBuilder(fileToGen, p.Types, logger)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
-			fnName := builder.BuildFunc(dst.Type(), src.Type())
+			fnName := builder.BuildFunc(dst.Type(), src.Type(), v.BuildConfig)
 			for _, name := range v.VarSpec.Names {
 				builder.AddInit(name.Name, fnName)
 			}
