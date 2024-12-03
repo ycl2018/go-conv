@@ -110,10 +110,8 @@ func generate(patterns ...string) error {
 func writeToFile(p *Package, genFileName string, content []byte) error {
 	fileName := filepath.Join(p.Dir, genFileName)
 	if *dryRun {
-		fmt.Fprintf(stderr,
-			"************* [go-conv] generated %s START *************\n\n%s"+
-				"\n************* [go-conv] generated END *************\n",
-			fileName, content)
+		fmt.Fprintf(os.Stdout,
+			"\n************* %s *************\n\n%s", fileName, content)
 	} else {
 		err := os.WriteFile(fileName, content, 0644)
 		if err != nil {
