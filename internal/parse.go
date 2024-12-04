@@ -16,7 +16,7 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 
 	for _, pkg := range pkgs {
 		if len(pkg.Errors) > 0 {
-			return nil, fmt.Errorf("[go-conv] package:%s contain syntax errors: %v", pkg.PkgPath, pkg.Errors)
+			return nil, fmt.Errorf("[go-conv] parse %s err:\n%v", pkg.PkgPath, pkg.Errors)
 		}
 		var p = &Package{Package: pkg}
 		for _, astFile := range pkg.Syntax {

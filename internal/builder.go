@@ -140,21 +140,13 @@ func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	// exactly same type
 	var stmts []ast.Stmt
 	if types.AssignableTo(src.Type(), dst.Type()) {
-		var assignmentStmt = &ast.AssignStmt{
-			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{ast.NewIdent(src.Name())},
-		}
+		var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 		stmts = append(stmts, assignmentStmt)
 		return stmts, true
 	}
 	if types.ConvertibleTo(src.Type(), dst.Type()) {
 		convertName := fmt.Sprintf("(%s)(%s)", b.importer.ImportType(dst.Type()), src.Name())
-		assignStmt := &ast.AssignStmt{
-			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{ast.NewIdent(convertName)},
-		}
+		assignStmt := buildAssignStmt(dst.Name(), convertName)
 		return append(stmts, assignStmt), true
 	}
 	return nil, false
@@ -185,14 +177,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 				return src.Name()
 			}()
-			assignStmt := &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{&ast.CallExpr{
-					Fun:  ast.NewIdent(funcName),
-					Args: []ast.Expr{ast.NewIdent(convedSrcName)},
-				}},
-			}
+			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convedSrcName))
 			if _, ok := b.genFunc[funcName]; !ok {
 				b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
 			}
@@ -211,25 +196,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		srcElemVar := types.NewVar(0, b.types, srcName, elemType)
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		// dst = new(dst.Type)
-		initAssign := &ast.AssignStmt{
-			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{&ast.CallExpr{
-				Fun:  ast.NewIdent("new"),
-				Args: []ast.Expr{ast.NewIdent(b.importer.ImportType(dstElemVar.Type()))},
-			}},
-		}
+		initAssign := buildAssignStmt(dst.Name(), fmt.Sprintf("new(%s)", b.importer.ImportType(dstElemVar.Type())))
 		if srcIsPtr {
-			ifStmt := &ast.IfStmt{
-				Cond: &ast.BinaryExpr{
-					X: &ast.Ident{
-						Name: src.Name(),
-					},
-					Op: token.NEQ,
-					Y:  ast.NewIdent("nil"),
-				},
-				Body: &ast.BlockStmt{},
-			}
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
 			ifStmt.Body.List = append(ifStmt.Body.List, initAssign)
 			ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)
 			stmts = append(stmts, ifStmt)
@@ -245,34 +214,20 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		switch dstUnderType.(type) {
 		case *types.Basic: // for named basic
 			srcElemType, ptrDepth, isPtr := dePointer(src.Type())
-			if !isPtr && types.ConvertibleTo(srcType, dstType) { // not a Pointer
-				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-				assignStmt := &ast.AssignStmt{
-					Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{ast.NewIdent(srcName)},
-				}
-				return append(stmts, assignStmt)
+			if ptrDepth > 1 || !types.ConvertibleTo(srcElemType, dstType) {
+				b.logger.Printf("omit %s :named type can't cast from %s", dst.Name(), src.Name())
+				return append(stmts, buildCommentExpr("omit "+dst.Name()))
 			}
-			if isPtr && ptrDepth == 1 && types.ConvertibleTo(srcElemType, dstType) { // a Pointer
-				ifStmt := &ast.IfStmt{
-					Cond: &ast.BinaryExpr{
-						X:  ast.NewIdent(src.Name()),
-						Op: token.NEQ,
-						Y:  ast.NewIdent("nil"),
-					},
-					Body: &ast.BlockStmt{},
-				}
-				assignStmt := &ast.AssignStmt{
-					Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{ast.NewIdent(ptrToName(srcName, ptrDepth))},
-				}
+			if !isPtr { // not a Pointer
+				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
+				assignStmt := buildAssignStmt(dst.Name(), srcName)
+				return append(stmts, assignStmt)
+			} else {
+				ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+				assignStmt := buildAssignStmt(dst.Name(), ptrToName(srcName, ptrDepth))
 				ifStmt.Body.List = append(ifStmt.Body.List, assignStmt)
 				return append(stmts, assignStmt)
 			}
-			b.logger.Printf("omit %s :named type can't cast from %s", dst.Name(), src.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
 		srcUnderVar := types.NewVar(0, b.types, srcName, srcType)
@@ -285,16 +240,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		// right side a struct Pointer, de pointer to
 		if isPtr {
-			ifStmt := &ast.IfStmt{
-				Cond: &ast.BinaryExpr{
-					X: &ast.Ident{
-						Name: src.Name(),
-					},
-					Op: token.NEQ,
-					Y:  ast.NewIdent("nil"),
-				},
-				Body: &ast.BlockStmt{},
-			}
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
 			ptrToSrcName := ptrToName(src.Name(), 1)
 			dstElemVar := types.NewVar(0, b.types, dst.Name(), dstType)
 			srcElemVar := types.NewVar(0, b.types, ptrToSrcName, srcType)
@@ -333,11 +279,19 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		return stmts
 	case *types.Array:
-		srcArrType, _, ok := convSliceToArray(src.Type())
-		if !ok {
+		srcElemType, ptrDepth, isPtr := dePointer(src.Type())
+		srcArrType, _, ok := convSliceToArray(srcElemType)
+		if !ok || ptrDepth > 1 {
 			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
+		stmts := stmts
+		if isPtr {
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+			stmts = append(stmts, ifStmt)
+			stmts = ifStmt.Body.List
+		}
+		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
 		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
@@ -357,7 +311,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					Op: token.LSS,
 					Y: &ast.CallExpr{
 						Fun:  ast.NewIdent("len"),
-						Args: []ast.Expr{ast.NewIdent(src.Name())},
+						Args: []ast.Expr{ast.NewIdent(srcName)},
 					},
 				},
 			},
@@ -367,31 +321,27 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcArrType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parencName(dst.Name())+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, srcName+"[i]", srcArrType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		stmts = append(stmts, forStmt)
 		return stmts
 	case *types.Map:
-		srcType, ok := src.Type().Underlying().(*types.Map)
-		if !ok {
+		srcElemType, ptrDepth, isPtr := dePointer(src.Type())
+		srcType, ok := srcElemType.Underlying().(*types.Map)
+		if !ok || ptrDepth > 1 {
 			b.logger.Printf("omit %s :%s type is not a map", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
-		ifStmt := &ast.IfStmt{
-			Cond: &ast.BinaryExpr{
-				X: &ast.CallExpr{
-					Fun:  ast.NewIdent("len"),
-					Args: []ast.Expr{ast.NewIdent(src.Name())},
-				},
-				OpPos: 0,
-				Op:    token.GTR,
-				Y:     ast.NewIdent("0"),
-			},
-			Body: &ast.BlockStmt{},
+		stmts := stmts
+		if isPtr {
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+			stmts = append(stmts, ifStmt)
+			stmts = ifStmt.Body.List
 		}
-
+		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
+		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
 		dstKeyVar := types.NewVar(0, b.types, "tmpK", dstType.Key())
 		dstValueVar := types.NewVar(0, b.types, "tmpV", dstType.Elem())
 		srcKeyVar := types.NewVar(0, b.types, "k", srcType.Key())
@@ -416,7 +366,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 						// cap
 						&ast.CallExpr{
 							Fun:  ast.NewIdent("len"),
-							Args: []ast.Expr{ast.NewIdent(src.Name())},
+							Args: []ast.Expr{ast.NewIdent(srcName)},
 						},
 					},
 				},
@@ -428,7 +378,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Key:   ast.NewIdent("k"),
 			Value: ast.NewIdent("v"),
 			Tok:   token.DEFINE,
-			X:     ast.NewIdent(src.Name()),
+			X:     ast.NewIdent(srcName),
 			Body:  &ast.BlockStmt{},
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, rangeStmt)
@@ -460,10 +410,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignVStmt...)
 		assignMapStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{&ast.IndexExpr{
-				X:      ast.NewIdent(dst.Name()),
-				Lbrack: 0,
-				Index:  ast.NewIdent(dstKeyVar.Name()),
-				Rbrack: 0,
+				X:     ast.NewIdent(parencName(dst.Name())),
+				Index: ast.NewIdent(dstKeyVar.Name()),
 			}},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{ast.NewIdent(dstValueVar.Name())},
@@ -472,39 +420,30 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, ifStmt)
 		return stmts
 	case *types.Slice:
-		srcSliceType, _, ok := convArrayToSlice(src.Type())
-		if !ok {
+		srcElemType, ptrDepth, isPtr := dePointer(src.Type())
+		srcSliceType, _, ok := convArrayToSlice(srcElemType)
+		if !ok || ptrDepth > 1 {
 			// check is string -> []byte/[]rune
 			if db, ok := dstType.Elem().(*types.Basic); ok &&
 				(db.Kind() == types.Byte || db.Kind() == types.Rune) {
 				if sb, ok := src.Type().Underlying().(*types.Basic); ok && sb.Kind() == types.String {
 					dstName := b.importer.ImportType(dstType)
-					assignStmt := &ast.AssignStmt{
-						Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-						Tok: token.ASSIGN,
-						Rhs: []ast.Expr{ast.NewIdent(fmt.Sprintf("%s(%s)",
-							dstName,
-							src.Name())),
-						},
-					}
+					assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", dstName,
+						src.Name()))
 					return append(stmts, assignStmt)
 				}
 			}
 			b.logger.Printf("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
-		ifStmt := &ast.IfStmt{
-			Cond: &ast.BinaryExpr{
-				X: &ast.CallExpr{
-					Fun:  ast.NewIdent("len"),
-					Args: []ast.Expr{ast.NewIdent(src.Name())},
-				},
-				OpPos: 0,
-				Op:    token.GTR,
-				Y:     ast.NewIdent("0"),
-			},
-			Body: &ast.BlockStmt{},
+		stmts := stmts
+		if isPtr {
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+			stmts = append(stmts, ifStmt)
+			stmts = ifStmt.Body.List
 		}
+		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
+		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
 		mkStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -518,7 +457,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 						// cap
 						&ast.CallExpr{
 							Fun:  ast.NewIdent("len"),
-							Args: []ast.Expr{ast.NewIdent(src.Name())},
+							Args: []ast.Expr{ast.NewIdent(srcName)},
 						},
 					},
 					Ellipsis: 0,
@@ -539,7 +478,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				Op: token.LSS,
 				Y: &ast.CallExpr{
 					Fun:  ast.NewIdent("len"),
-					Args: []ast.Expr{ast.NewIdent(src.Name())},
+					Args: []ast.Expr{ast.NewIdent(srcName)},
 				},
 			},
 			Post: &ast.IncDecStmt{
@@ -548,8 +487,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.types, dst.Name()+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, src.Name()+"[i]", srcSliceType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parencName(dst.Name())+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, parencName(srcName)+"[i]", srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
@@ -557,46 +496,27 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		return stmts
 	case *types.Basic:
 		if types.AssignableTo(src.Type(), dst.Type()) {
-			var assignmentStmt = &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{ast.NewIdent(src.Name())},
-			}
+			var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 			stmts = append(stmts, assignmentStmt)
 			return stmts
 		}
 		if types.ConvertibleTo(src.Type(), dst.Type()) {
 			convertName := fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-			assignStmt := &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{ast.NewIdent(convertName)},
-			}
+			assignStmt := buildAssignStmt(dst.Name(), convertName)
 			return append(stmts, assignStmt)
 		}
 		// check if src pointer to elem can convert to dst
 		srcElemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 
 		if srcIsPtr && ptrDepth == 1 && types.ConvertibleTo(srcElemType, dstType) { // a Pointer
-			ifStmt := &ast.IfStmt{
-				Cond: &ast.BinaryExpr{
-					X:  ast.NewIdent(src.Name()),
-					Op: token.NEQ,
-					Y:  ast.NewIdent("nil"),
-				},
-				Body: &ast.BlockStmt{},
-			}
+			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
 			srcPtrToName := ptrToName(src.Name(), ptrDepth)
 			if !types.AssignableTo(srcElemType, dstType) {
 				srcPtrToName = fmt.Sprintf("%s(%s)", dstType.String(), srcPtrToName)
 			}
-			assignStmt := &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{ast.NewIdent(srcPtrToName)},
-			}
+			assignStmt := buildAssignStmt(dst.Name(), srcPtrToName)
 			ifStmt.Body.List = append(ifStmt.Body.List, assignStmt)
-			return append(stmts, assignStmt)
+			return append(stmts, ifStmt)
 		}
 		b.logger.Printf("omit %s :basic type can't cast from %s (or it pointers to)", dst.Name(), src.Name())
 		return append(stmts, buildCommentExpr("omit "+dst.Name()))
@@ -606,6 +526,13 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	}
 
 	return stmts
+}
+
+func parencName(name string) string {
+	if strings.HasPrefix(name, "*") {
+		return "(" + name + ")"
+	}
+	return name
 }
 
 func isPointerToStruct(p *types.Pointer) bool {
