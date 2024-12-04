@@ -348,6 +348,7 @@ func CopyABasicToBBasicPtr(src *a.Basic) (dst *b.BasicPtr) {
 	return
 }
 func init() {
+	CopyBasicToBasic = CopyABasicToBBasic
 	CopyBasicToBasicPointer = CopyABasicToBBasicPtr
 	CopyBasicPointerToBasic = CopyABasicPtrToBBasic
 	CopyBasicPointerToBasicPointer = CopyABasicPtrToBBasicPtr
@@ -355,5 +356,4 @@ func init() {
 	BasicToBasicPointer = ABasicToBBasicPtr
 	BasicPointerToBasic = ABasicPtrToBBasic
 	BasicPointerToBasicPointer = ABasicPtrToBBasicPtr
-	CopyBasicToBasic = CopyABasicToBBasic
 }

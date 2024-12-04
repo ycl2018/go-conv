@@ -23,3 +23,16 @@ func buildAssignStmt(lh string, rh string) *ast.AssignStmt {
 		Rhs: []ast.Expr{ast.NewIdent(rh)},
 	}
 }
+
+func buildVarDecl(varName string, typeName string) *ast.DeclStmt {
+	return &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok: token.VAR,
+			Specs: []ast.Spec{
+				&ast.ValueSpec{
+					Names: []*ast.Ident{ast.NewIdent(varName)},
+					Type:  ast.NewIdent(typeName),
+				},
+			},
+		}}
+}

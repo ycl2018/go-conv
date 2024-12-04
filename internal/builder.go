@@ -169,7 +169,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		// check has generated func
 		if !b.rootNode && srcIsStruct && isPointerToStruct(dstType) {
 			funcName := b.GenFuncName(elemType, dst.Type(), b.buildConfig)
-			convedSrcName := func() string {
+			convSrcName := func() string {
 				if !srcIsPtr {
 					return addressName(src.Name(), 1)
 				} else {
@@ -177,7 +177,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 				return src.Name()
 			}()
-			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convedSrcName))
+			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
 			if _, ok := b.genFunc[funcName]; !ok {
 				b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
 			}
@@ -382,40 +382,15 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			Body:  &ast.BlockStmt{},
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, rangeStmt)
-		kDeclStmt := &ast.DeclStmt{
-			Decl: &ast.GenDecl{
-				Tok: token.VAR,
-				Specs: []ast.Spec{
-					&ast.ValueSpec{
-						Names: []*ast.Ident{ast.NewIdent(dstKeyVar.Name())},
-						Type:  ast.NewIdent(dstKeyTypeStr),
-					},
-				},
-			}}
-		vDeclStmt := &ast.DeclStmt{
-			Decl: &ast.GenDecl{
-				Tok: token.VAR,
-				Specs: []ast.Spec{
-					&ast.ValueSpec{
-						Names: []*ast.Ident{ast.NewIdent(dstValueVar.Name())},
-						Type:  ast.NewIdent(dstValueTypeStr),
-					},
-				},
-			}}
+		kDeclStmt := buildVarDecl(dstKeyVar.Name(), dstKeyTypeStr)
+		vDeclStmt := buildVarDecl(dstValueVar.Name(), dstValueTypeStr)
 		// var (tmpK xx, tmpV xx)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, kDeclStmt, vDeclStmt)
 		assignKStmt := b.buildStmt(dstKeyVar, srcKeyVar)
 		assignVStmt := b.buildStmt(dstValueVar, srcValueVar)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignKStmt...)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignVStmt...)
-		assignMapStmt := &ast.AssignStmt{
-			Lhs: []ast.Expr{&ast.IndexExpr{
-				X:     ast.NewIdent(parencName(dst.Name())),
-				Index: ast.NewIdent(dstKeyVar.Name()),
-			}},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{ast.NewIdent(dstValueVar.Name())},
-		}
+		assignMapStmt := buildAssignStmt(fmt.Sprintf("%s[%s]", parencName(dst.Name()), dstKeyVar.Name()), dstValueVar.Name())
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignMapStmt)
 		stmts = append(stmts, ifStmt)
 		return stmts

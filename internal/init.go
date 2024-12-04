@@ -25,12 +25,15 @@ func (i *InitFuncBuilder) GenInit() *ast.FuncDecl {
 		Type: &ast.FuncType{},
 		Body: &ast.BlockStmt{},
 	}
-
-	for varName, funcName := range i.varToFunc {
+	var names = make([]string, 0, len(i.varToFunc))
+	for k, _ := range i.varToFunc {
+		names = append(names, k)
+	}
+	for _, varName := range names {
 		var assignStmt = &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(varName)},
 			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{ast.NewIdent(funcName)},
+			Rhs: []ast.Expr{ast.NewIdent(i.varToFunc[varName])},
 		}
 		initFuncDecl.Body.List = append(initFuncDecl.Body.List, assignStmt)
 	}
