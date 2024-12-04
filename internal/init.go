@@ -3,6 +3,7 @@ package internal
 import (
 	"go/ast"
 	"go/token"
+	"sort"
 )
 
 type InitFuncBuilder struct {
@@ -29,6 +30,7 @@ func (i *InitFuncBuilder) GenInit() *ast.FuncDecl {
 	for k, _ := range i.varToFunc {
 		names = append(names, k)
 	}
+	sort.Strings(names)
 	for _, varName := range names {
 		var assignStmt = &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(varName)},
