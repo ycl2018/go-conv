@@ -116,7 +116,6 @@ func (i *Importer) GenImportDecl() []ast.Decl {
 			spec.Name = ast.NewIdent(name)
 		}
 	}
-	// TODO sort import
 	if len(im.Specs) > 0 {
 		importDecls = append(importDecls, im)
 	}
