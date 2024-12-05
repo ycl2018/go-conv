@@ -34,6 +34,17 @@ func (i *Importer) ImportType(t types.Type) string {
 		case *types.Named:
 			pkg = varType.Obj().Pkg()
 			typeName += varType.Obj().Name()
+			if typeArgs := varType.TypeArgs(); typeArgs != nil {
+				typeName += "["
+				for j := range typeArgs.Len() {
+					if j != 0 {
+						typeName += ","
+					}
+					typeArg := typeArgs.At(j)
+					typeName += i.ImportType(typeArg)
+				}
+				typeName += "]"
+			}
 			return
 		case *types.Basic:
 			typeName += varType.Name()

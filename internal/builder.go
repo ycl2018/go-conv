@@ -138,15 +138,18 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
 }
 
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
-	// exactly same type
+	//if _, ok := dst.Type().(*types.Struct); ok { // never shallow copy struct type
+	//	return nil, false
+	//}
 	var stmts []ast.Stmt
+	// exactly same type
 	if types.AssignableTo(src.Type(), dst.Type()) {
 		var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 		stmts = append(stmts, assignmentStmt)
 		return stmts, true
 	}
 	if types.ConvertibleTo(src.Type(), dst.Type()) {
-		convertName := fmt.Sprintf("(%s)(%s)", b.importer.ImportType(dst.Type()), src.Name())
+		convertName := fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), src.Name())
 		assignStmt := buildAssignStmt(dst.Name(), convertName)
 		return append(stmts, assignStmt), true
 	}
@@ -213,21 +216,19 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		var srcType = src.Type()
 		var srcName = src.Name()
 		switch dstUnderType.(type) {
-		case *types.Basic: // for named basic
+		case *types.Basic, *types.Struct: // for named basic/struct type is a special basic type
 			srcElemType, ptrDepth, isPtr := dePointer(src.Type())
-			if ptrDepth > 1 || !types.ConvertibleTo(srcElemType, dstType) {
-				b.logger.Printf("omit %s :named type can't cast from %s", dst.Name(), src.Name())
-				return append(stmts, buildCommentExpr("omit "+dst.Name()))
-			}
-			if !isPtr { // not a Pointer
-				srcName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-				assignStmt := buildAssignStmt(dst.Name(), srcName)
-				return append(stmts, assignStmt)
-			} else {
-				ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
-				assignStmt := buildAssignStmt(dst.Name(), ptrToName(srcName, ptrDepth))
-				ifStmt.Body.List = append(ifStmt.Body.List, assignStmt)
-				return append(stmts, assignStmt)
+			if ptrDepth < 2 && types.ConvertibleTo(srcElemType, dstType) {
+				srcName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), ptrToName(srcName, ptrDepth))
+				if !isPtr { // not a Pointer
+					assignStmt := buildAssignStmt(dst.Name(), srcName)
+					return append(stmts, assignStmt)
+				} else {
+					ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+					assignStmt := buildAssignStmt(dst.Name(), srcName)
+					ifStmt.Body.List = append(ifStmt.Body.List, assignStmt)
+					return append(stmts, assignStmt)
+				}
 			}
 		}
 		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
@@ -477,28 +478,23 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		stmts = append(stmts, forStmt)
 		return stmts
 	case *types.Basic:
-		if types.AssignableTo(src.Type(), dst.Type()) {
-			var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
-			stmts = append(stmts, assignmentStmt)
-			return stmts
-		}
-		if types.ConvertibleTo(src.Type(), dst.Type()) {
-			convertName := fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), src.Name())
-			assignStmt := buildAssignStmt(dst.Name(), convertName)
-			return append(stmts, assignStmt)
-		}
 		// check if src pointer to elem can convert to dst
 		srcElemType, ptrDepth, srcIsPtr := dePointer(src.Type())
-
-		if srcIsPtr && ptrDepth == 1 && types.ConvertibleTo(srcElemType, dstType) { // a Pointer
-			ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+		if ptrDepth < 2 && types.ConvertibleTo(srcElemType, dstType) {
 			srcPtrToName := ptrToName(src.Name(), ptrDepth)
+			stmts := stmts
+			if srcIsPtr {
+				ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
+				stmts = append(stmts, ifStmt)
+				stmts = ifStmt.Body.List
+			}
 			if !types.AssignableTo(srcElemType, dstType) {
-				srcPtrToName = fmt.Sprintf("%s(%s)", dstType.String(), srcPtrToName)
+				// need cast
+				srcPtrToName = fmt.Sprintf("%s(%s)", b.importer.ImportType(dst.Type()), srcPtrToName)
 			}
 			assignStmt := buildAssignStmt(dst.Name(), srcPtrToName)
-			ifStmt.Body.List = append(ifStmt.Body.List, assignStmt)
-			return append(stmts, ifStmt)
+			stmts = append(stmts, assignStmt)
+			return stmts
 		}
 		b.logger.Printf("omit %s :basic type can't cast from %s (or it pointers to)", dst.Name(), src.Name())
 		return append(stmts, buildCommentExpr("omit "+dst.Name()))
@@ -644,6 +640,13 @@ func cleanName(name string) string {
 				first = false
 			} else {
 				s.WriteRune(c)
+			}
+		} else {
+			switch c {
+			case '*':
+				s.WriteString("Ptr")
+			default:
+				continue
 			}
 		}
 	}

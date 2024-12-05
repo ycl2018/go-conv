@@ -7,7 +7,7 @@ import (
 	"github.com/ycl2018/go-conv/testdata/b"
 )
 
-func AArrayPtrToBArray(src *a.ArrayPtr) (dst *b.Array) {
+func CopyPtrAArrayPtrToPtrBArray(src *a.ArrayPtr) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
 		for i := 0; i < 6; i++ {
@@ -16,11 +16,14 @@ func AArrayPtrToBArray(src *a.ArrayPtr) (dst *b.Array) {
 	}
 	return
 }
-func AArrayPtrToBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
-	dst = (*b.ArrayPtr)(src)
+func CopyPtrAArrayPtrToPtrBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
+	if src != nil {
+		dst = new(b.ArrayPtr)
+		*dst = b.ArrayPtr(*src)
+	}
 	return
 }
-func AArrayPtrToBSlice(src *a.ArrayPtr) (dst *b.Slice) {
+func CopyPtrAArrayPtrToPtrBSlice(src *a.ArrayPtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
 		dst.Name = make([]string, len((*src.Name)))
@@ -30,7 +33,7 @@ func AArrayPtrToBSlice(src *a.ArrayPtr) (dst *b.Slice) {
 	}
 	return
 }
-func AArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
+func CopyPtrAArrayPtrToPtrBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		if src.Name != nil {
@@ -43,19 +46,24 @@ func AArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 	}
 	return
 }
-func AArrayToBArray(src *a.Array) (dst *b.Array) {
-	dst = (*b.Array)(src)
-	return
-}
-func AArrayToBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
+func CopyPtrAArrayToPtrBArray(src *a.Array) (dst *b.Array) {
 	if src != nil {
-		dst = new(b.ArrayPtr)
-		dst.Name = new([6]string)
-		*dst.Name = src.Name
+		dst = new(b.Array)
+		*dst = b.Array(*src)
 	}
 	return
 }
-func AArrayToBSlice(src *a.Array) (dst *b.Slice) {
+func CopyPtrAArrayToPtrBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
+	if src != nil {
+		dst = new(b.ArrayPtr)
+		dst.Name = new([6]string)
+		for i := 0; i < 6; i++ {
+			(*dst.Name)[i] = src.Name[i]
+		}
+	}
+	return
+}
+func CopyPtrAArrayToPtrBSlice(src *a.Array) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
 		dst.Name = make([]string, len(src.Name))
@@ -65,7 +73,7 @@ func AArrayToBSlice(src *a.Array) (dst *b.Slice) {
 	}
 	return
 }
-func AArrayToBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
+func CopyPtrAArrayToPtrBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		dst.Name = new([]string)
@@ -76,7 +84,7 @@ func AArrayToBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
 	}
 	return
 }
-func AMapPtrToBMap(src *a.MapPtr) (dst *b.Map) {
+func CopyPtrAMapPtrToPtrBMap(src *a.MapPtr) (dst *b.Map) {
 	if src != nil {
 		dst = new(b.Map)
 		if len((*src.Name)) > 0 {
@@ -92,217 +100,21 @@ func AMapPtrToBMap(src *a.MapPtr) (dst *b.Map) {
 	}
 	return
 }
-func AMapPtrToBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
-	dst = (*b.MapPtr)(src)
-	return
-}
-func AMapToBMap(src *a.Map) (dst *b.Map) {
-	dst = (*b.Map)(src)
-	return
-}
-func AMapToBMapPtr(src *a.Map) (dst *b.MapPtr) {
+func CopyPtrAMapPtrToPtrBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
 	if src != nil {
 		dst = new(b.MapPtr)
-		dst.Name = new(map[string]string)
-		*dst.Name = src.Name
+		*dst = b.MapPtr(*src)
 	}
 	return
 }
-func ASlicePtrToBArray(src *a.SlicePtr) (dst *b.Array) {
-	if src != nil {
-		dst = new(b.Array)
-		for i := 0; i < 6 && i < len((*src.Name)); i++ {
-			dst.Name[i] = (*src.Name)[i]
-		}
-	}
-	return
-}
-func ASlicePtrToBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
-	if src != nil {
-		dst = new(b.ArrayPtr)
-		if src.Name != nil {
-			dst.Name = new([6]string)
-			*dst.Name = ([6]string)(*src.Name)
-		}
-	}
-	return
-}
-func ASlicePtrToBSlice(src *a.SlicePtr) (dst *b.Slice) {
-	if src != nil {
-		dst = new(b.Slice)
-		dst.Name = make([]string, len((*src.Name)))
-		for i := 0; i < len((*src.Name)); i++ {
-			dst.Name[i] = (*src.Name)[i]
-		}
-	}
-	return
-}
-func ASlicePtrToBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
-	dst = (*b.SlicePtr)(src)
-	return
-}
-func ASliceToBArray(src *a.Slice) (dst *b.Array) {
-	if src != nil {
-		dst = new(b.Array)
-		dst.Name = ([6]string)(src.Name)
-	}
-	return
-}
-func ASliceToBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
-	if src != nil {
-		dst = new(b.ArrayPtr)
-		dst.Name = (*[6]string)(src.Name)
-	}
-	return
-}
-func ASliceToBSlice(src *a.Slice) (dst *b.Slice) {
-	dst = (*b.Slice)(src)
-	return
-}
-func ASliceToBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
-	if src != nil {
-		dst = new(b.SlicePtr)
-		dst.Name = new([]string)
-		*dst.Name = src.Name
-	}
-	return
-}
-func CopyAArrayPtrToBArray(src *a.ArrayPtr) (dst *b.Array) {
-	if src != nil {
-		dst = new(b.Array)
-		for i := 0; i < 6; i++ {
-			dst.Name[i] = (*src.Name)[i]
-		}
-	}
-	return
-}
-func CopyAArrayPtrToBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
-	if src != nil {
-		dst = new(b.ArrayPtr)
-		if src.Name != nil {
-			dst.Name = new([6]string)
-			for i := 0; i < 6; i++ {
-				(*dst.Name)[i] = (*src.Name)[i]
-			}
-		}
-	}
-	return
-}
-func CopyAArrayPtrToBSlice(src *a.ArrayPtr) (dst *b.Slice) {
-	if src != nil {
-		dst = new(b.Slice)
-		dst.Name = make([]string, len((*src.Name)))
-		for i := 0; i < len((*src.Name)); i++ {
-			dst.Name[i] = (*src.Name)[i]
-		}
-	}
-	return
-}
-func CopyAArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
-	if src != nil {
-		dst = new(b.SlicePtr)
-		if src.Name != nil {
-			dst.Name = new([]string)
-			*dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				(*dst.Name)[i] = (*src.Name)[i]
-			}
-		}
-	}
-	return
-}
-func CopyAArrayToBArray(src *a.Array) (dst *b.Array) {
-	if src != nil {
-		dst = new(b.Array)
-		for i := 0; i < 6; i++ {
-			dst.Name[i] = src.Name[i]
-		}
-	}
-	return
-}
-func CopyAArrayToBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
-	if src != nil {
-		dst = new(b.ArrayPtr)
-		dst.Name = new([6]string)
-		for i := 0; i < 6; i++ {
-			(*dst.Name)[i] = src.Name[i]
-		}
-	}
-	return
-}
-func CopyAArrayToBSlice(src *a.Array) (dst *b.Slice) {
-	if src != nil {
-		dst = new(b.Slice)
-		dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			dst.Name[i] = src.Name[i]
-		}
-	}
-	return
-}
-func CopyAArrayToBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
-	if src != nil {
-		dst = new(b.SlicePtr)
-		dst.Name = new([]string)
-		*dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			(*dst.Name)[i] = src.Name[i]
-		}
-	}
-	return
-}
-func CopyAMapPtrToBMap(src *a.MapPtr) (dst *b.Map) {
+func CopyPtrAMapToPtrBMap(src *a.Map) (dst *b.Map) {
 	if src != nil {
 		dst = new(b.Map)
-		if len((*src.Name)) > 0 {
-			dst.Name = make(map[string]string, len((*src.Name)))
-			for k, v := range *src.Name {
-				var tmpK string
-				var tmpV string
-				tmpK = k
-				tmpV = v
-				dst.Name[tmpK] = tmpV
-			}
-		}
+		*dst = b.Map(*src)
 	}
 	return
 }
-func CopyAMapPtrToBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
-	if src != nil {
-		dst = new(b.MapPtr)
-		if src.Name != nil {
-			dst.Name = new(map[string]string)
-			if len((*src.Name)) > 0 {
-				*dst.Name = make(map[string]string, len((*src.Name)))
-				for k, v := range *src.Name {
-					var tmpK string
-					var tmpV string
-					tmpK = k
-					tmpV = v
-					(*dst.Name)[tmpK] = tmpV
-				}
-			}
-		}
-	}
-	return
-}
-func CopyAMapToBMap(src *a.Map) (dst *b.Map) {
-	if src != nil {
-		dst = new(b.Map)
-		if len(src.Name) > 0 {
-			dst.Name = make(map[string]string, len(src.Name))
-			for k, v := range src.Name {
-				var tmpK string
-				var tmpV string
-				tmpK = k
-				tmpV = v
-				dst.Name[tmpK] = tmpV
-			}
-		}
-	}
-	return
-}
-func CopyAMapToBMapPtr(src *a.Map) (dst *b.MapPtr) {
+func CopyPtrAMapToPtrBMapPtr(src *a.Map) (dst *b.MapPtr) {
 	if src != nil {
 		dst = new(b.MapPtr)
 		dst.Name = new(map[string]string)
@@ -319,7 +131,7 @@ func CopyAMapToBMapPtr(src *a.Map) (dst *b.MapPtr) {
 	}
 	return
 }
-func CopyASlicePtrToBArray(src *a.SlicePtr) (dst *b.Array) {
+func CopyPtrASlicePtrToPtrBArray(src *a.SlicePtr) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
 		for i := 0; i < 6 && i < len((*src.Name)); i++ {
@@ -328,7 +140,7 @@ func CopyASlicePtrToBArray(src *a.SlicePtr) (dst *b.Array) {
 	}
 	return
 }
-func CopyASlicePtrToBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
+func CopyPtrASlicePtrToPtrBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
 	if src != nil {
 		dst = new(b.ArrayPtr)
 		if src.Name != nil {
@@ -340,7 +152,7 @@ func CopyASlicePtrToBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
 	}
 	return
 }
-func CopyASlicePtrToBSlice(src *a.SlicePtr) (dst *b.Slice) {
+func CopyPtrASlicePtrToPtrBSlice(src *a.SlicePtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
 		dst.Name = make([]string, len((*src.Name)))
@@ -350,7 +162,74 @@ func CopyASlicePtrToBSlice(src *a.SlicePtr) (dst *b.Slice) {
 	}
 	return
 }
-func CopyASlicePtrToBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
+func CopyPtrASlicePtrToPtrBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
+	if src != nil {
+		dst = new(b.SlicePtr)
+		*dst = b.SlicePtr(*src)
+	}
+	return
+}
+func CopyPtrASliceToPtrBArray(src *a.Slice) (dst *b.Array) {
+	if src != nil {
+		dst = new(b.Array)
+		for i := 0; i < 6 && i < len(src.Name); i++ {
+			dst.Name[i] = src.Name[i]
+		}
+	}
+	return
+}
+func CopyPtrASliceToPtrBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
+	if src != nil {
+		dst = new(b.ArrayPtr)
+		dst.Name = new([6]string)
+		for i := 0; i < 6 && i < len(src.Name); i++ {
+			(*dst.Name)[i] = src.Name[i]
+		}
+	}
+	return
+}
+func CopyPtrASliceToPtrBSlice(src *a.Slice) (dst *b.Slice) {
+	if src != nil {
+		dst = new(b.Slice)
+		*dst = b.Slice(*src)
+	}
+	return
+}
+func CopyPtrASliceToPtrBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
+	if src != nil {
+		dst = new(b.SlicePtr)
+		dst.Name = new([]string)
+		*dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			(*dst.Name)[i] = src.Name[i]
+		}
+	}
+	return
+}
+func PtrAArrayPtrToPtrBArray(src *a.ArrayPtr) (dst *b.Array) {
+	if src != nil {
+		dst = new(b.Array)
+		for i := 0; i < 6; i++ {
+			dst.Name[i] = (*src.Name)[i]
+		}
+	}
+	return
+}
+func PtrAArrayPtrToPtrBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
+	dst = (*b.ArrayPtr)(src)
+	return
+}
+func PtrAArrayPtrToPtrBSlice(src *a.ArrayPtr) (dst *b.Slice) {
+	if src != nil {
+		dst = new(b.Slice)
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
+		}
+	}
+	return
+}
+func PtrAArrayPtrToPtrBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		if src.Name != nil {
@@ -363,26 +242,19 @@ func CopyASlicePtrToBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
 	}
 	return
 }
-func CopyASliceToBArray(src *a.Slice) (dst *b.Array) {
-	if src != nil {
-		dst = new(b.Array)
-		for i := 0; i < 6 && i < len(src.Name); i++ {
-			dst.Name[i] = src.Name[i]
-		}
-	}
+func PtrAArrayToPtrBArray(src *a.Array) (dst *b.Array) {
+	dst = (*b.Array)(src)
 	return
 }
-func CopyASliceToBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
+func PtrAArrayToPtrBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
 	if src != nil {
 		dst = new(b.ArrayPtr)
 		dst.Name = new([6]string)
-		for i := 0; i < 6 && i < len(src.Name); i++ {
-			(*dst.Name)[i] = src.Name[i]
-		}
+		*dst.Name = src.Name
 	}
 	return
 }
-func CopyASliceToBSlice(src *a.Slice) (dst *b.Slice) {
+func PtrAArrayToPtrBSlice(src *a.Array) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
 		dst.Name = make([]string, len(src.Name))
@@ -392,7 +264,7 @@ func CopyASliceToBSlice(src *a.Slice) (dst *b.Slice) {
 	}
 	return
 }
-func CopyASliceToBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
+func PtrAArrayToPtrBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		dst.Name = new([]string)
@@ -403,45 +275,136 @@ func CopyASliceToBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
 	}
 	return
 }
+func PtrAMapPtrToPtrBMap(src *a.MapPtr) (dst *b.Map) {
+	if src != nil {
+		dst = new(b.Map)
+		if len((*src.Name)) > 0 {
+			dst.Name = make(map[string]string, len((*src.Name)))
+			for k, v := range *src.Name {
+				var tmpK string
+				var tmpV string
+				tmpK = k
+				tmpV = v
+				dst.Name[tmpK] = tmpV
+			}
+		}
+	}
+	return
+}
+func PtrAMapPtrToPtrBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
+	dst = (*b.MapPtr)(src)
+	return
+}
+func PtrAMapToPtrBMap(src *a.Map) (dst *b.Map) {
+	dst = (*b.Map)(src)
+	return
+}
+func PtrAMapToPtrBMapPtr(src *a.Map) (dst *b.MapPtr) {
+	if src != nil {
+		dst = new(b.MapPtr)
+		dst.Name = new(map[string]string)
+		*dst.Name = src.Name
+	}
+	return
+}
+func PtrASlicePtrToPtrBArray(src *a.SlicePtr) (dst *b.Array) {
+	if src != nil {
+		dst = new(b.Array)
+		for i := 0; i < 6 && i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
+		}
+	}
+	return
+}
+func PtrASlicePtrToPtrBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
+	if src != nil {
+		dst = new(b.ArrayPtr)
+		if src.Name != nil {
+			dst.Name = new([6]string)
+			*dst.Name = [6]string(*src.Name)
+		}
+	}
+	return
+}
+func PtrASlicePtrToPtrBSlice(src *a.SlicePtr) (dst *b.Slice) {
+	if src != nil {
+		dst = new(b.Slice)
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
+		}
+	}
+	return
+}
+func PtrASlicePtrToPtrBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
+	dst = (*b.SlicePtr)(src)
+	return
+}
+func PtrASliceToPtrBArray(src *a.Slice) (dst *b.Array) {
+	if src != nil {
+		dst = new(b.Array)
+		dst.Name = [6]string(src.Name)
+	}
+	return
+}
+func PtrASliceToPtrBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
+	if src != nil {
+		dst = new(b.ArrayPtr)
+		dst.Name = (*[6]string)(src.Name)
+	}
+	return
+}
+func PtrASliceToPtrBSlice(src *a.Slice) (dst *b.Slice) {
+	dst = (*b.Slice)(src)
+	return
+}
+func PtrASliceToPtrBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
+	if src != nil {
+		dst = new(b.SlicePtr)
+		dst.Name = new([]string)
+		*dst.Name = src.Name
+	}
+	return
+}
 func init() {
-	ArrayPtrToArray = AArrayPtrToBArray
-	ArrayPtrToArrayPtr = AArrayPtrToBArrayPtr
-	ArrayPtrToSlice = AArrayPtrToBSlice
-	ArrayPtrToSlicePtr = AArrayPtrToBSlicePtr
-	ArrayToArray = AArrayToBArray
-	ArrayToArrayPtr = AArrayToBArrayPtr
-	ArrayToSlice = AArrayToBSlice
-	ArrayToSlicePtr = AArrayToBSlicePtr
-	CopyArrayPtrToArray = CopyAArrayPtrToBArray
-	CopyArrayPtrToArrayPtr = CopyAArrayPtrToBArrayPtr
-	CopyArrayPtrToSlice = CopyAArrayPtrToBSlice
-	CopyArrayPtrToSlicePtr = CopyAArrayPtrToBSlicePtr
-	CopyArrayToArray = CopyAArrayToBArray
-	CopyArrayToArrayPtr = CopyAArrayToBArrayPtr
-	CopyArrayToSlice = CopyAArrayToBSlice
-	CopyArrayToSlicePtr = CopyAArrayToBSlicePtr
-	CopyMapPtrToMap = CopyAMapPtrToBMap
-	CopyMapPtrToMapPtr = CopyAMapPtrToBMapPtr
-	CopyMapToMap = CopyAMapToBMap
-	CopyMapToMapPtr = CopyAMapToBMapPtr
-	CopySlicePtrToArray = CopyASlicePtrToBArray
-	CopySlicePtrToArrayPtr = CopyASlicePtrToBArrayPtr
-	CopySlicePtrToSlice = CopyASlicePtrToBSlice
-	CopySlicePtrToSlicePtr = CopyASlicePtrToBSlicePtr
-	CopySliceToArray = CopyASliceToBArray
-	CopySliceToArrayPtr = CopyASliceToBArrayPtr
-	CopySliceToSlice = CopyASliceToBSlice
-	CopySliceToSlicePtr = CopyASliceToBSlicePtr
-	MapPtrToMap = AMapPtrToBMap
-	MapPtrToMapPtr = AMapPtrToBMapPtr
-	MapToMap = AMapToBMap
-	MapToMapPtr = AMapToBMapPtr
-	SlicePtrToArray = ASlicePtrToBArray
-	SlicePtrToArrayPtr = ASlicePtrToBArrayPtr
-	SlicePtrToSlice = ASlicePtrToBSlice
-	SlicePtrToSlicePtr = ASlicePtrToBSlicePtr
-	SliceToArray = ASliceToBArray
-	SliceToArrayPtr = ASliceToBArrayPtr
-	SliceToSlice = ASliceToBSlice
-	SliceToSlicePtr = ASliceToBSlicePtr
+	ArrayPtrToArray = PtrAArrayPtrToPtrBArray
+	ArrayPtrToArrayPtr = PtrAArrayPtrToPtrBArrayPtr
+	ArrayPtrToSlice = PtrAArrayPtrToPtrBSlice
+	ArrayPtrToSlicePtr = PtrAArrayPtrToPtrBSlicePtr
+	ArrayToArray = PtrAArrayToPtrBArray
+	ArrayToArrayPtr = PtrAArrayToPtrBArrayPtr
+	ArrayToSlice = PtrAArrayToPtrBSlice
+	ArrayToSlicePtr = PtrAArrayToPtrBSlicePtr
+	CopyArrayPtrToArray = CopyPtrAArrayPtrToPtrBArray
+	CopyArrayPtrToArrayPtr = CopyPtrAArrayPtrToPtrBArrayPtr
+	CopyArrayPtrToSlice = CopyPtrAArrayPtrToPtrBSlice
+	CopyArrayPtrToSlicePtr = CopyPtrAArrayPtrToPtrBSlicePtr
+	CopyArrayToArray = CopyPtrAArrayToPtrBArray
+	CopyArrayToArrayPtr = CopyPtrAArrayToPtrBArrayPtr
+	CopyArrayToSlice = CopyPtrAArrayToPtrBSlice
+	CopyArrayToSlicePtr = CopyPtrAArrayToPtrBSlicePtr
+	CopyMapPtrToMap = CopyPtrAMapPtrToPtrBMap
+	CopyMapPtrToMapPtr = CopyPtrAMapPtrToPtrBMapPtr
+	CopyMapToMap = CopyPtrAMapToPtrBMap
+	CopyMapToMapPtr = CopyPtrAMapToPtrBMapPtr
+	CopySlicePtrToArray = CopyPtrASlicePtrToPtrBArray
+	CopySlicePtrToArrayPtr = CopyPtrASlicePtrToPtrBArrayPtr
+	CopySlicePtrToSlice = CopyPtrASlicePtrToPtrBSlice
+	CopySlicePtrToSlicePtr = CopyPtrASlicePtrToPtrBSlicePtr
+	CopySliceToArray = CopyPtrASliceToPtrBArray
+	CopySliceToArrayPtr = CopyPtrASliceToPtrBArrayPtr
+	CopySliceToSlice = CopyPtrASliceToPtrBSlice
+	CopySliceToSlicePtr = CopyPtrASliceToPtrBSlicePtr
+	MapPtrToMap = PtrAMapPtrToPtrBMap
+	MapPtrToMapPtr = PtrAMapPtrToPtrBMapPtr
+	MapToMap = PtrAMapToPtrBMap
+	MapToMapPtr = PtrAMapToPtrBMapPtr
+	SlicePtrToArray = PtrASlicePtrToPtrBArray
+	SlicePtrToArrayPtr = PtrASlicePtrToPtrBArrayPtr
+	SlicePtrToSlice = PtrASlicePtrToPtrBSlice
+	SlicePtrToSlicePtr = PtrASlicePtrToPtrBSlicePtr
+	SliceToArray = PtrASliceToPtrBArray
+	SliceToArrayPtr = PtrASliceToPtrBArrayPtr
+	SliceToSlice = PtrASliceToPtrBSlice
+	SliceToSlicePtr = PtrASliceToPtrBSlicePtr
 }

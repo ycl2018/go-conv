@@ -6,9 +6,6 @@ import (
 )
 
 // go-conv:generate
-//var ArrayPtrToSlicePtrTest func(*a.ArrayPtr) *b.SlicePtr
-
-// go-conv:generate
 var (
 	ArrayToArray    func(*a.Array) *b.Array
 	ArrayToArrayPtr func(*a.Array) *b.ArrayPtr
