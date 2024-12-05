@@ -2,6 +2,8 @@ package internal
 
 import (
 	"fmt"
+	"go/ast"
+	"go/token"
 	"go/types"
 	"strconv"
 )
@@ -82,4 +84,30 @@ func (i *Importer) ImportType(t types.Type) string {
 
 	name := typPrefix + pkgImportName + "." + typeName
 	return name
+}
+
+func (i *Importer) GenImportDecl() []ast.Decl {
+	var importDecls []ast.Decl
+	im := &ast.GenDecl{
+		Doc:   nil,
+		Tok:   token.IMPORT,
+		Specs: []ast.Spec{},
+	}
+	for _, p := range i.imported {
+		spec := &ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "\"" + p.Path() + "\"",
+			},
+		}
+		im.Specs = append(im.Specs, spec)
+		if name, ok := i.pkgToName[p.Path()]; ok && name != p.Name() {
+			spec.Name = ast.NewIdent(name)
+		}
+	}
+	// TODO sort import
+	if len(im.Specs) > 0 {
+		importDecls = append(importDecls, im)
+	}
+	return importDecls
 }

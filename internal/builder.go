@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
+	"go/parser"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"sort"
@@ -89,7 +90,7 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 	return funcName
 }
 
-func convArrayToSlice(v types.Type) (s *types.Slice, conved, ok bool) {
+func convArrayToSlice(v types.Type) (s *types.Slice, isArray, ok bool) {
 	if s, ok = v.Underlying().(*types.Slice); ok {
 		return s, false, true
 	}
@@ -99,7 +100,7 @@ func convArrayToSlice(v types.Type) (s *types.Slice, conved, ok bool) {
 	return nil, false, false
 }
 
-func convSliceToArray(v types.Type) (arr *types.Array, conved, ok bool) {
+func convSliceToArray(v types.Type) (arr *types.Array, isSlice, ok bool) {
 	if arr, ok = v.Underlying().(*types.Array); ok {
 		return arr, false, true
 	}
@@ -280,7 +281,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		return stmts
 	case *types.Array:
 		srcElemType, ptrDepth, isPtr := dePointer(src.Type())
-		srcArrType, _, ok := convSliceToArray(srcElemType)
+		srcArrType, isSlice, ok := convSliceToArray(srcElemType)
 		if !ok || ptrDepth > 1 {
 			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
@@ -291,7 +292,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			stmts = append(stmts, ifStmt)
 			stmts = ifStmt.Body.List
 		}
-		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
+		var srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
 		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
@@ -300,11 +301,19 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				Rhs: []ast.Expr{ast.NewIdent("0")},
 			},
 			Cond: &ast.BinaryExpr{
-				X: &ast.BinaryExpr{
-					X:  ast.NewIdent("i"),
-					Op: token.LSS,
-					Y:  ast.NewIdent(strconv.FormatInt(dstType.Len(), 10)),
-				},
+				X:  ast.NewIdent("i"),
+				Op: token.LSS,
+				Y:  ast.NewIdent(strconv.FormatInt(dstType.Len(), 10)),
+			},
+			Post: &ast.IncDecStmt{
+				X:   ast.NewIdent("i"),
+				Tok: token.INC,
+			},
+			Body: &ast.BlockStmt{},
+		}
+		if isSlice || srcArrType.Len() > dstType.Len() {
+			forStmt.Cond = &ast.BinaryExpr{
+				X:  forStmt.Cond,
 				Op: token.LAND,
 				Y: &ast.BinaryExpr{
 					X:  ast.NewIdent("i"),
@@ -314,14 +323,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 						Args: []ast.Expr{ast.NewIdent(srcName)},
 					},
 				},
-			},
-			Post: &ast.IncDecStmt{
-				X:   ast.NewIdent("i"),
-				Tok: token.INC,
-			},
-			Body: &ast.BlockStmt{},
+			}
 		}
-		dstElemVar := types.NewVar(0, b.types, parencName(dst.Name())+"[i]", dstType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parenthesesName(dst.Name())+"[i]", dstType.Elem())
 		srcElemVar := types.NewVar(0, b.types, srcName+"[i]", srcArrType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
@@ -340,7 +344,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			stmts = append(stmts, ifStmt)
 			stmts = ifStmt.Body.List
 		}
-		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
+		var srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
 		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
 		dstKeyVar := types.NewVar(0, b.types, "tmpK", dstType.Key())
 		dstValueVar := types.NewVar(0, b.types, "tmpV", dstType.Elem())
@@ -390,13 +394,13 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		assignVStmt := b.buildStmt(dstValueVar, srcValueVar)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignKStmt...)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignVStmt...)
-		assignMapStmt := buildAssignStmt(fmt.Sprintf("%s[%s]", parencName(dst.Name()), dstKeyVar.Name()), dstValueVar.Name())
+		assignMapStmt := buildAssignStmt(fmt.Sprintf("%s[%s]", parenthesesName(dst.Name()), dstKeyVar.Name()), dstValueVar.Name())
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignMapStmt)
 		stmts = append(stmts, ifStmt)
 		return stmts
 	case *types.Slice:
 		srcElemType, ptrDepth, isPtr := dePointer(src.Type())
-		srcSliceType, _, ok := convArrayToSlice(srcElemType)
+		srcSliceType, isArray, ok := convArrayToSlice(srcElemType)
 		if !ok || ptrDepth > 1 {
 			// check is string -> []byte/[]rune
 			if db, ok := dstType.Elem().(*types.Basic); ok &&
@@ -417,8 +421,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			stmts = append(stmts, ifStmt)
 			stmts = ifStmt.Body.List
 		}
-		var srcName = parencName(ptrToName(src.Name(), ptrDepth))
-		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
+		var srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
+		if !isArray {
+			ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
+			stmts = append(stmts, ifStmt)
+			stmts = ifStmt.Body.List
+		}
 		mkStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -440,7 +448,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			},
 		}
-		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
+		stmts = append(stmts, mkStmt)
 		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
@@ -462,12 +470,11 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.types, parencName(dst.Name())+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, parencName(srcName)+"[i]", srcSliceType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parenthesesName(dst.Name())+"[i]", dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types, parenthesesName(srcName)+"[i]", srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
-		ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
-		stmts = append(stmts, ifStmt)
+		stmts = append(stmts, forStmt)
 		return stmts
 	case *types.Basic:
 		if types.AssignableTo(src.Type(), dst.Type()) {
@@ -503,7 +510,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	return stmts
 }
 
-func parencName(name string) string {
+func parenthesesName(name string) string {
 	if strings.HasPrefix(name, "*") {
 		return "(" + name + ")"
 	}
@@ -582,15 +589,6 @@ func matchField(dstField *types.Var, srcStruct *types.Struct) (matched *types.Va
 	return nil, false
 }
 
-func canCast(from, to *types.Basic) bool {
-	fromInfo, toInfo := from.Info(), to.Info()
-	// numbers
-	if (fromInfo|types.IsNumeric|types.IsUnsigned) != 0 && (toInfo|types.IsNumeric|types.IsUnsigned) != 0 {
-		return true
-	}
-	return false
-}
-
 func (b *Builder) Generate() ([]byte, error) {
 	// fill and sort import
 	b.fillImport()
@@ -607,48 +605,33 @@ func (b *Builder) Generate() ([]byte, error) {
 	initFunc := b.GenInit()
 	b.f.Decls = append(b.f.Decls, initFunc)
 
+	// format
+	var buf bytes.Buffer
+	fileSet := token.NewFileSet()
+	err := printer.Fprint(&buf, fileSet, b.f)
+	if err != nil {
+		return nil, fmt.Errorf("format.Node internal error (%s)", err)
+	}
+	// parse
+	const parserMode = parser.ParseComments | parser.SkipObjectResolution
+	file, err := parser.ParseFile(fileSet, "", buf.Bytes(), parserMode)
+	if err != nil {
+		// We should never get here. If we do, provide good diagnostic.
+		return nil, fmt.Errorf("format.Node internal error (%s)", err)
+	}
+	ast.SortImports(fileSet, file)
 	var sb bytes.Buffer
 	sb.WriteString("// Code generated by github.com/ycl2018/go-conv DO NOT EDIT.\n\n")
-	// format
-	err := format.Node(&sb, token.NewFileSet(), b.f)
+	err = printer.Fprint(&sb, fileSet, file)
 	if err != nil {
-		return nil, fmt.Errorf("[go-conv]: failed to format code: %w", err)
+		return nil, fmt.Errorf("format.Node internal error (%s)", err)
 	}
 	return sb.Bytes(), nil
 }
 
 func (b *Builder) fillImport() {
-	var importDecls []ast.Decl
-	im := &ast.GenDecl{
-		Doc:   nil,
-		Tok:   token.IMPORT,
-		Specs: []ast.Spec{},
-	}
-	for _, p := range b.importer.imported {
-		spec := &ast.ImportSpec{
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: "\"" + p.Path() + "\"",
-			},
-		}
-		im.Specs = append(im.Specs, spec)
-		if name, ok := b.importer.pkgToName[p.Path()]; ok && name != p.Name() {
-			spec.Name = ast.NewIdent(name)
-		}
-	}
-	if len(im.Specs) > 0 {
-		importDecls = append(importDecls, im)
-	}
+	var importDecls = b.importer.GenImportDecl()
 	b.f.Decls = append(importDecls, b.f.Decls...)
-}
-
-func buildCommentExpr(comment string) *ast.ExprStmt {
-	return &ast.ExprStmt{
-		X: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: "// " + comment,
-		},
-	}
 }
 
 func cleanName(name string) string {

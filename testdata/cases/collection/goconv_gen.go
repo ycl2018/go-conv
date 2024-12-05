@@ -10,7 +10,7 @@ import (
 func AArrayPtrToBArray(src *a.ArrayPtr) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
-		for i := 0; i < 6 && i < len((*src.Name)); i++ {
+		for i := 0; i < 6; i++ {
 			dst.Name[i] = (*src.Name)[i]
 		}
 	}
@@ -23,11 +23,9 @@ func AArrayPtrToBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
 func AArrayPtrToBSlice(src *a.ArrayPtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len((*src.Name)) > 0 {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
-			}
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
 		}
 	}
 	return
@@ -37,11 +35,9 @@ func AArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 		dst = new(b.SlicePtr)
 		if src.Name != nil {
 			dst.Name = new([]string)
-			if len((*src.Name)) > 0 {
-				*dst.Name = make([]string, len((*src.Name)))
-				for i := 0; i < len((*src.Name)); i++ {
-					(*dst.Name)[i] = (*src.Name)[i]
-				}
+			*dst.Name = make([]string, len((*src.Name)))
+			for i := 0; i < len((*src.Name)); i++ {
+				(*dst.Name)[i] = (*src.Name)[i]
 			}
 		}
 	}
@@ -62,11 +58,9 @@ func AArrayToBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
 func AArrayToBSlice(src *a.Array) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len(src.Name) > 0 {
-			dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				dst.Name[i] = src.Name[i]
-			}
+		dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			dst.Name[i] = src.Name[i]
 		}
 	}
 	return
@@ -75,11 +69,9 @@ func AArrayToBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		dst.Name = new([]string)
-		if len(src.Name) > 0 {
-			*dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				(*dst.Name)[i] = src.Name[i]
-			}
+		*dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			(*dst.Name)[i] = src.Name[i]
 		}
 	}
 	return
@@ -89,7 +81,7 @@ func AMapPtrToBMap(src *a.MapPtr) (dst *b.Map) {
 		dst = new(b.Map)
 		if len((*src.Name)) > 0 {
 			dst.Name = make(map[string]string, len((*src.Name)))
-			for k, v := range (*src.Name) {
+			for k, v := range *src.Name {
 				var tmpK string
 				var tmpV string
 				tmpK = k
@@ -138,11 +130,9 @@ func ASlicePtrToBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
 func ASlicePtrToBSlice(src *a.SlicePtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len((*src.Name)) > 0 {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
-			}
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
 		}
 	}
 	return
@@ -180,7 +170,7 @@ func ASliceToBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
 func CopyAArrayPtrToBArray(src *a.ArrayPtr) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
-		for i := 0; i < 6 && i < len((*src.Name)); i++ {
+		for i := 0; i < 6; i++ {
 			dst.Name[i] = (*src.Name)[i]
 		}
 	}
@@ -191,7 +181,7 @@ func CopyAArrayPtrToBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
 		dst = new(b.ArrayPtr)
 		if src.Name != nil {
 			dst.Name = new([6]string)
-			for i := 0; i < 6 && i < len((*src.Name)); i++ {
+			for i := 0; i < 6; i++ {
 				(*dst.Name)[i] = (*src.Name)[i]
 			}
 		}
@@ -201,11 +191,9 @@ func CopyAArrayPtrToBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
 func CopyAArrayPtrToBSlice(src *a.ArrayPtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len((*src.Name)) > 0 {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
-			}
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
 		}
 	}
 	return
@@ -215,11 +203,9 @@ func CopyAArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 		dst = new(b.SlicePtr)
 		if src.Name != nil {
 			dst.Name = new([]string)
-			if len((*src.Name)) > 0 {
-				*dst.Name = make([]string, len((*src.Name)))
-				for i := 0; i < len((*src.Name)); i++ {
-					(*dst.Name)[i] = (*src.Name)[i]
-				}
+			*dst.Name = make([]string, len((*src.Name)))
+			for i := 0; i < len((*src.Name)); i++ {
+				(*dst.Name)[i] = (*src.Name)[i]
 			}
 		}
 	}
@@ -228,7 +214,7 @@ func CopyAArrayPtrToBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 func CopyAArrayToBArray(src *a.Array) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
-		for i := 0; i < 6 && i < len(src.Name); i++ {
+		for i := 0; i < 6; i++ {
 			dst.Name[i] = src.Name[i]
 		}
 	}
@@ -238,7 +224,7 @@ func CopyAArrayToBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
 	if src != nil {
 		dst = new(b.ArrayPtr)
 		dst.Name = new([6]string)
-		for i := 0; i < 6 && i < len(src.Name); i++ {
+		for i := 0; i < 6; i++ {
 			(*dst.Name)[i] = src.Name[i]
 		}
 	}
@@ -247,11 +233,9 @@ func CopyAArrayToBArrayPtr(src *a.Array) (dst *b.ArrayPtr) {
 func CopyAArrayToBSlice(src *a.Array) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len(src.Name) > 0 {
-			dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				dst.Name[i] = src.Name[i]
-			}
+		dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			dst.Name[i] = src.Name[i]
 		}
 	}
 	return
@@ -260,11 +244,9 @@ func CopyAArrayToBSlicePtr(src *a.Array) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		dst.Name = new([]string)
-		if len(src.Name) > 0 {
-			*dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				(*dst.Name)[i] = src.Name[i]
-			}
+		*dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			(*dst.Name)[i] = src.Name[i]
 		}
 	}
 	return
@@ -274,7 +256,7 @@ func CopyAMapPtrToBMap(src *a.MapPtr) (dst *b.Map) {
 		dst = new(b.Map)
 		if len((*src.Name)) > 0 {
 			dst.Name = make(map[string]string, len((*src.Name)))
-			for k, v := range (*src.Name) {
+			for k, v := range *src.Name {
 				var tmpK string
 				var tmpV string
 				tmpK = k
@@ -292,7 +274,7 @@ func CopyAMapPtrToBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
 			dst.Name = new(map[string]string)
 			if len((*src.Name)) > 0 {
 				*dst.Name = make(map[string]string, len((*src.Name)))
-				for k, v := range (*src.Name) {
+				for k, v := range *src.Name {
 					var tmpK string
 					var tmpV string
 					tmpK = k
@@ -361,11 +343,9 @@ func CopyASlicePtrToBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
 func CopyASlicePtrToBSlice(src *a.SlicePtr) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len((*src.Name)) > 0 {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
-			}
+		dst.Name = make([]string, len((*src.Name)))
+		for i := 0; i < len((*src.Name)); i++ {
+			dst.Name[i] = (*src.Name)[i]
 		}
 	}
 	return
@@ -375,11 +355,9 @@ func CopyASlicePtrToBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
 		dst = new(b.SlicePtr)
 		if src.Name != nil {
 			dst.Name = new([]string)
-			if len((*src.Name)) > 0 {
-				*dst.Name = make([]string, len((*src.Name)))
-				for i := 0; i < len((*src.Name)); i++ {
-					(*dst.Name)[i] = (*src.Name)[i]
-				}
+			*dst.Name = make([]string, len((*src.Name)))
+			for i := 0; i < len((*src.Name)); i++ {
+				(*dst.Name)[i] = (*src.Name)[i]
 			}
 		}
 	}
@@ -407,11 +385,9 @@ func CopyASliceToBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
 func CopyASliceToBSlice(src *a.Slice) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		if len(src.Name) > 0 {
-			dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				dst.Name[i] = src.Name[i]
-			}
+		dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			dst.Name[i] = src.Name[i]
 		}
 	}
 	return
@@ -420,11 +396,9 @@ func CopyASliceToBSlicePtr(src *a.Slice) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
 		dst.Name = new([]string)
-		if len(src.Name) > 0 {
-			*dst.Name = make([]string, len(src.Name))
-			for i := 0; i < len(src.Name); i++ {
-				(*dst.Name)[i] = src.Name[i]
-			}
+		*dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			(*dst.Name)[i] = src.Name[i]
 		}
 	}
 	return
