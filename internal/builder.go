@@ -217,6 +217,11 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		var srcName = src.Name()
 		switch dstUnderType.(type) {
 		case *types.Basic, *types.Struct: // for named basic/struct type is a special basic type
+			if _, ok := dstUnderType.(*types.Struct); ok {
+				if b.buildConfig.BuildMode != BuildModeConv {
+					break
+				}
+			}
 			srcElemType, ptrDepth, isPtr := dePointer(src.Type())
 			if ptrDepth < 2 && types.ConvertibleTo(srcElemType, dstType) {
 				srcName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), ptrToName(srcName, ptrDepth))

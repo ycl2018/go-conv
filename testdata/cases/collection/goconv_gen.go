@@ -19,7 +19,12 @@ func CopyPtrAArrayPtrToPtrBArray(src *a.ArrayPtr) (dst *b.Array) {
 func CopyPtrAArrayPtrToPtrBArrayPtr(src *a.ArrayPtr) (dst *b.ArrayPtr) {
 	if src != nil {
 		dst = new(b.ArrayPtr)
-		*dst = b.ArrayPtr(*src)
+		if src.Name != nil {
+			dst.Name = new([6]string)
+			for i := 0; i < 6; i++ {
+				(*dst.Name)[i] = (*src.Name)[i]
+			}
+		}
 	}
 	return
 }
@@ -49,7 +54,9 @@ func CopyPtrAArrayPtrToPtrBSlicePtr(src *a.ArrayPtr) (dst *b.SlicePtr) {
 func CopyPtrAArrayToPtrBArray(src *a.Array) (dst *b.Array) {
 	if src != nil {
 		dst = new(b.Array)
-		*dst = b.Array(*src)
+		for i := 0; i < 6; i++ {
+			dst.Name[i] = src.Name[i]
+		}
 	}
 	return
 }
@@ -103,14 +110,35 @@ func CopyPtrAMapPtrToPtrBMap(src *a.MapPtr) (dst *b.Map) {
 func CopyPtrAMapPtrToPtrBMapPtr(src *a.MapPtr) (dst *b.MapPtr) {
 	if src != nil {
 		dst = new(b.MapPtr)
-		*dst = b.MapPtr(*src)
+		if src.Name != nil {
+			dst.Name = new(map[string]string)
+			if len((*src.Name)) > 0 {
+				*dst.Name = make(map[string]string, len((*src.Name)))
+				for k, v := range *src.Name {
+					var tmpK string
+					var tmpV string
+					tmpK = k
+					tmpV = v
+					(*dst.Name)[tmpK] = tmpV
+				}
+			}
+		}
 	}
 	return
 }
 func CopyPtrAMapToPtrBMap(src *a.Map) (dst *b.Map) {
 	if src != nil {
 		dst = new(b.Map)
-		*dst = b.Map(*src)
+		if len(src.Name) > 0 {
+			dst.Name = make(map[string]string, len(src.Name))
+			for k, v := range src.Name {
+				var tmpK string
+				var tmpV string
+				tmpK = k
+				tmpV = v
+				dst.Name[tmpK] = tmpV
+			}
+		}
 	}
 	return
 }
@@ -165,7 +193,13 @@ func CopyPtrASlicePtrToPtrBSlice(src *a.SlicePtr) (dst *b.Slice) {
 func CopyPtrASlicePtrToPtrBSlicePtr(src *a.SlicePtr) (dst *b.SlicePtr) {
 	if src != nil {
 		dst = new(b.SlicePtr)
-		*dst = b.SlicePtr(*src)
+		if src.Name != nil {
+			dst.Name = new([]string)
+			*dst.Name = make([]string, len((*src.Name)))
+			for i := 0; i < len((*src.Name)); i++ {
+				(*dst.Name)[i] = (*src.Name)[i]
+			}
+		}
 	}
 	return
 }
@@ -191,7 +225,10 @@ func CopyPtrASliceToPtrBArrayPtr(src *a.Slice) (dst *b.ArrayPtr) {
 func CopyPtrASliceToPtrBSlice(src *a.Slice) (dst *b.Slice) {
 	if src != nil {
 		dst = new(b.Slice)
-		*dst = b.Slice(*src)
+		dst.Name = make([]string, len(src.Name))
+		for i := 0; i < len(src.Name); i++ {
+			dst.Name[i] = src.Name[i]
+		}
 	}
 	return
 }
