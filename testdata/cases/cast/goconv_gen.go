@@ -7,34 +7,62 @@ import (
 	"github.com/ycl2018/go-conv/testdata/b"
 )
 
-func ACastfloat32ToPtrBCastPtrint(src a.Cast[float32]) (dst *b.Cast[*int]) {
+func ACastFloat32ToPtrBCastInt(src a.Cast[float32]) (dst *b.Cast[int]) {
+	dst = new(b.Cast[int])
+	dst.Name = int(src.Name)
+	return
+}
+func ACastFloat32ToPtrBCastPtrInt(src a.Cast[float32]) (dst *b.Cast[*int]) {
 	dst = new(b.Cast[*int])
 	dst.Name = new(int)
 	*dst.Name = int(src.Name)
 	return
 }
-func ACastfloat32ToPtrBCastint(src a.Cast[float32]) (dst *b.Cast[int]) {
-	dst = new(b.Cast[int])
-	dst.Name = int(src.Name)
+func ACastSliceByteToPtrBCastString(src a.Cast[[]byte]) (dst *b.Cast[string]) {
+	dst = new(b.Cast[string])
+	dst.Name = string(src.Name)
 	return
 }
-func PtrACastintToPtrBCastfloat32(src *a.Cast[int]) (dst *b.Cast[float32]) {
+func ACastSliceRuneToPtrBCastSliceRune(src a.Cast[[]rune]) (dst *b.Cast[[]rune]) {
+	dst = new(b.Cast[[]rune])
+	*dst = b.Cast[[]rune](src)
+	return
+}
+func PtrACastIntToPtrBCastFloat32(src *a.Cast[int]) (dst *b.Cast[float32]) {
 	if src != nil {
 		dst = new(b.Cast[float32])
 		dst.Name = float32(src.Name)
 	}
 	return
 }
-func PtrACastintToPtrBCastuint(src *a.Cast[int]) (dst *b.Cast[uint]) {
+func PtrACastIntToPtrBCastUint(src *a.Cast[int]) (dst *b.Cast[uint]) {
 	if src != nil {
 		dst = new(b.Cast[uint])
 		dst.Name = uint(src.Name)
 	}
 	return
 }
+func PtrACastStringToPtrBCastSliceByte(src *a.Cast[string]) (dst *b.Cast[[]byte]) {
+	if src != nil {
+		dst = new(b.Cast[[]byte])
+		dst.Name = []byte(src.Name)
+	}
+	return
+}
+func PtrACastStringToPtrBCastSliceRune(src *a.Cast[string]) (dst *b.Cast[[]rune]) {
+	if src != nil {
+		dst = new(b.Cast[[]rune])
+		dst.Name = []rune(src.Name)
+	}
+	return
+}
 func init() {
-	FloatToInt = ACastfloat32ToPtrBCastint
-	FloatToIntPtr = ACastfloat32ToPtrBCastPtrint
-	IntToFloat = PtrACastintToPtrBCastfloat32
-	IntToUint = PtrACastintToPtrBCastuint
+	ByteSliceToString = ACastSliceByteToPtrBCastString
+	FloatToInt = ACastFloat32ToPtrBCastInt
+	FloatToIntPtr = ACastFloat32ToPtrBCastPtrInt
+	IntToFloat = PtrACastIntToPtrBCastFloat32
+	IntToUint = PtrACastIntToPtrBCastUint
+	RuneSliceToString = ACastSliceRuneToPtrBCastSliceRune
+	StringToByteSlice = PtrACastStringToPtrBCastSliceByte
+	StringToRuneSlice = PtrACastStringToPtrBCastSliceRune
 }

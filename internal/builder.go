@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 type BuildMode int
@@ -633,29 +632,6 @@ func (b *Builder) Generate() ([]byte, error) {
 func (b *Builder) fillImport() {
 	var importDecls = b.importer.GenImportDecl()
 	b.f.Decls = append(importDecls, b.f.Decls...)
-}
-
-func cleanName(name string) string {
-	var s strings.Builder
-	var first = true
-	for _, c := range name {
-		if unicode.IsLetter(c) || (unicode.IsNumber(c) && !first) {
-			if first {
-				s.WriteString(strings.ToUpper(string(c)))
-				first = false
-			} else {
-				s.WriteRune(c)
-			}
-		} else {
-			switch c {
-			case '*':
-				s.WriteString("Ptr")
-			default:
-				continue
-			}
-		}
-	}
-	return s.String()
 }
 
 func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) string {
