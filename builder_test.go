@@ -1,11 +1,13 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewBuilder(t *testing.T) {
-	*dryRun = true
+	*dryRun = false
 	*verbose = true
-	err := generate("./testdata")
+	err := generate("./testdata/cases/...")
 	if err != nil {
 		t.Fatal(err)
 	}

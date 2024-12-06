@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -16,7 +17,12 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 
 	for _, pkg := range pkgs {
 		if len(pkg.Errors) > 0 {
-			return nil, fmt.Errorf("[go-conv] package:%s contain syntax errors: %v", pkg.PkgPath, pkg.Errors)
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("[go-conv] parse err in %s \n", pkg.PkgPath))
+			for _, e := range pkg.Errors {
+				sb.WriteString(fmt.Sprintf("%s\t%s\n", e.Pos, e.Msg))
+			}
+			return nil, errors.New(sb.String())
 		}
 		var p = &Package{Package: pkg}
 		for _, astFile := range pkg.Syntax {
@@ -43,7 +49,7 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 							if sig, ok := tye.(*types.Signature); ok {
 								if sig.Params().Len() == 0 || sig.Results().Len() == 0 {
 									return nil, fmt.Errorf(
-										"[go-conv] err: 0 params/results func Signature found at %s",
+										"[go-conv] err: 0 params/results func Signature found at\n%s",
 										pkg.Fset.Position(vs.Pos()).String())
 								}
 								// get package dir
