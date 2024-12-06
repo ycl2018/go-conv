@@ -194,7 +194,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		dstName := ptrToName(dst.Name(), depth)
-		srcName := parenthesesName(ptrToName(src.Name(), ptrDepth))
+		var srcName = src.Name()
+		if !srcIsStruct {
+			srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
+		}
 		dstElemVar := types.NewVar(0, b.types, dstName, dstType.Elem())
 		srcElemVar := types.NewVar(0, b.types, srcName, elemType)
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
@@ -493,7 +496,17 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 
 func (b *Builder) dePointerSrcStmt(dst *types.Var, src *types.Var, srcElemType types.Type) []ast.Stmt {
 	ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
-	ptrToSrcName := parenthesesName(ptrToName(src.Name(), 1))
+	var needParentheses = true
+	switch srcElemType.Underlying().(type) {
+	case *types.Struct:
+		needParentheses = false
+	case *types.Basic:
+		needParentheses = false
+	}
+	ptrToSrcName := ptrToName(src.Name(), 1)
+	if needParentheses {
+		ptrToSrcName = parenthesesName(ptrToSrcName)
+	}
 	srcElemVar := types.NewVar(0, b.types, ptrToSrcName, srcElemType)
 	elementStmt := b.buildStmt(dst, srcElemVar)
 	ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)

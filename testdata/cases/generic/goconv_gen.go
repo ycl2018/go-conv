@@ -10,9 +10,9 @@ import (
 func PtrAGenericStringIntToPtrBGenericStringInt64(src *a.Generic[string, int]) (dst *b.Generic[string, int64]) {
 	if src != nil {
 		dst = new(b.Generic[string, int64])
-		if len((*src).Map) > 0 {
-			dst.Map = make(map[string]int64, len((*src).Map))
-			for k, v := range (*src).Map {
+		if len(src.Map) > 0 {
+			dst.Map = make(map[string]int64, len(src.Map))
+			for k, v := range src.Map {
 				var tmpK string
 				var tmpV int64
 				tmpK = k
@@ -20,24 +20,24 @@ func PtrAGenericStringIntToPtrBGenericStringInt64(src *a.Generic[string, int]) (
 				dst.Map[tmpK] = tmpV
 			}
 		}
-		dst.Slice = make([]int64, len((*src).Slice))
-		for i := 0; i < len((*src).Slice); i++ {
-			dst.Slice[i] = int64((*src).Slice[i])
+		dst.Slice = make([]int64, len(src.Slice))
+		for i := 0; i < len(src.Slice); i++ {
+			dst.Slice[i] = int64(src.Slice[i])
 		}
 		for i := 0; i < 3; i++ {
-			dst.Array[i] = int64((*src).Array[i])
+			dst.Array[i] = int64(src.Array[i])
 		}
-		dst.K = (*src).K
-		dst.V = int64((*src).V)
+		dst.K = src.K
+		dst.V = int64(src.V)
 	}
 	return
 }
 func PtrAGenericStringSliceIntToPtrBGenericStringSliceInt64(src *a.Generic[string, []int]) (dst *b.Generic[string, []int64]) {
 	if src != nil {
 		dst = new(b.Generic[string, []int64])
-		if len((*src).Map) > 0 {
-			dst.Map = make(map[string][]int64, len((*src).Map))
-			for k, v := range (*src).Map {
+		if len(src.Map) > 0 {
+			dst.Map = make(map[string][]int64, len(src.Map))
+			for k, v := range src.Map {
 				var tmpK string
 				var tmpV []int64
 				tmpK = k
@@ -48,23 +48,23 @@ func PtrAGenericStringSliceIntToPtrBGenericStringSliceInt64(src *a.Generic[strin
 				dst.Map[tmpK] = tmpV
 			}
 		}
-		dst.Slice = make([][]int64, len((*src).Slice))
-		for i := 0; i < len((*src).Slice); i++ {
-			dst.Slice[i] = make([]int64, len((*src).Slice[i]))
-			for i := 0; i < len((*src).Slice[i]); i++ {
-				dst.Slice[i][i] = int64((*src).Slice[i][i])
+		dst.Slice = make([][]int64, len(src.Slice))
+		for i := 0; i < len(src.Slice); i++ {
+			dst.Slice[i] = make([]int64, len(src.Slice[i]))
+			for i := 0; i < len(src.Slice[i]); i++ {
+				dst.Slice[i][i] = int64(src.Slice[i][i])
 			}
 		}
 		for i := 0; i < 3; i++ {
-			dst.Array[i] = make([]int64, len((*src).Array[i]))
-			for i := 0; i < len((*src).Array[i]); i++ {
-				dst.Array[i][i] = int64((*src).Array[i][i])
+			dst.Array[i] = make([]int64, len(src.Array[i]))
+			for i := 0; i < len(src.Array[i]); i++ {
+				dst.Array[i][i] = int64(src.Array[i][i])
 			}
 		}
-		dst.K = (*src).K
-		dst.V = make([]int64, len((*src).V))
-		for i := 0; i < len((*src).V); i++ {
-			dst.V[i] = int64((*src).V[i])
+		dst.K = src.K
+		dst.V = make([]int64, len(src.V))
+		for i := 0; i < len(src.V); i++ {
+			dst.V[i] = int64(src.V[i])
 		}
 	}
 	return
