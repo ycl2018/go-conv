@@ -31,28 +31,28 @@ func ACastSliceRuneToPtrBCastSliceRune(src a.Cast[[]rune]) (dst *b.Cast[[]rune])
 func PtrACastIntToPtrBCastFloat32(src *a.Cast[int]) (dst *b.Cast[float32]) {
 	if src != nil {
 		dst = new(b.Cast[float32])
-		dst.Name = float32(src.Name)
+		dst.Name = float32((*src).Name)
 	}
 	return
 }
 func PtrACastIntToPtrBCastUint(src *a.Cast[int]) (dst *b.Cast[uint]) {
 	if src != nil {
 		dst = new(b.Cast[uint])
-		dst.Name = uint(src.Name)
+		dst.Name = uint((*src).Name)
 	}
 	return
 }
 func PtrACastStringToPtrBCastSliceByte(src *a.Cast[string]) (dst *b.Cast[[]byte]) {
 	if src != nil {
 		dst = new(b.Cast[[]byte])
-		dst.Name = []byte(src.Name)
+		dst.Name = []byte((*src).Name)
 	}
 	return
 }
 func PtrACastStringToPtrBCastSliceRune(src *a.Cast[string]) (dst *b.Cast[[]rune]) {
 	if src != nil {
 		dst = new(b.Cast[[]rune])
-		dst.Name = []rune(src.Name)
+		dst.Name = []rune((*src).Name)
 	}
 	return
 }

@@ -17,7 +17,6 @@ var (
 
 // go-conv:generate
 // go-conv:copy
-
 var (
 	CopyBasicToBasic               func(*a.Basic) *b.Basic
 	CopyBasicToBasicPointer        func(*a.Basic) *b.BasicPtr
