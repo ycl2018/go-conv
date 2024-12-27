@@ -13,12 +13,14 @@ func WithIgnoreTypes(types ...any) Option {
 	return Option{}
 }
 
-// WithIgnoreIndexes specify Indexes of Slice to ignore in convert
-func WithIgnoreIndexes(sliceObj any, indexes []int) Option {
+// WithTransformer specify transformer function on type T. if path are set, transformer only apply to specified path.
+// Or else all types that matched with transformer will be applied.
+func WithTransformer[T, V any](transformer func(T) V, path ...string) Option {
 	return Option{}
 }
 
-// WithIgnoreKeys specify Keys of Map to ignore in convert
-func WithIgnoreKeys(mapObj any, keys []any) Option {
+// WithFilter specify filter function on type T. if path are set, filter only apply to specified path.
+// Or else all types that matched with filter will be applied.
+func WithFilter[T any](filter func(T) T, path ...string) Option {
 	return Option{}
 }

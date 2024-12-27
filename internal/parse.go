@@ -80,11 +80,9 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 }
 
 const (
-	applyOptionsType  = "[]github.com/ycl2018/go-conv/option.Option"
-	ignoreFieldsFunc  = "WithIgnoreFields"
-	ignoreTypesFunc   = "WithIgnoreTypes"
-	ignoreIndexesFunc = "WithIgnoreIndexes"
-	ignoreKeysFunc    = "WithIgnoreKeys"
+	applyOptionsType = "[]github.com/ycl2018/go-conv/option.Option"
+	ignoreFieldsFunc = "WithIgnoreFields"
+	ignoreTypesFunc  = "WithIgnoreTypes"
 )
 
 type CommentParser struct {
