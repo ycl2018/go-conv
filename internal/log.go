@@ -5,6 +5,8 @@ import (
 	"io"
 )
 
+var DefaultLogger *Logger
+
 type Logger struct {
 	verbose bool
 	out     io.Writer
@@ -21,5 +23,9 @@ func (l *Logger) Printf(format string, args ...any) {
 	if !l.verbose {
 		return
 	}
+	fmt.Fprintf(l.out, format+"\n", args...)
+}
+
+func (l *Logger) Notice(format string, args ...any) {
 	fmt.Fprintf(l.out, format+"\n", args...)
 }

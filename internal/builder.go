@@ -42,14 +42,14 @@ type Builder struct {
 	logger      *Logger
 }
 
-func NewBuilder(f *ast.File, types *types.Package, logger *Logger) *Builder {
+func NewBuilder(f *ast.File, types *types.Package) *Builder {
 	return &Builder{
 		f:               f,
 		types:           types,
 		importer:        NewImporter(types.Path()),
 		genFunc:         make(map[string]*ast.FuncDecl),
 		InitFuncBuilder: NewInitFuncBuilder(),
-		logger:          logger,
+		logger:          DefaultLogger,
 	}
 }
 
@@ -137,9 +137,6 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
 }
 
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
-	//if _, ok := dst.Type().(*types.Struct); ok { // never shallow copy struct type
-	//	return nil, false
-	//}
 	var stmts []ast.Stmt
 	// exactly same type
 	if types.AssignableTo(src.Type(), dst.Type()) && src.Type().String() == dst.Type().String() {

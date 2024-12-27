@@ -22,6 +22,21 @@ type Package struct {
 
 type BuildConfig struct {
 	BuildMode BuildMode
+	Ignore    map[IgnoreType]any
+}
+
+type IgnoreKind int
+
+const (
+	IgnoreStructFields = iota + 1
+	IgnoreSliceIndexes
+	IgnoreMapKeys
+	IgnoreTypes
+)
+
+type IgnoreType struct {
+	typ  types.Type
+	kind IgnoreKind
 }
 
 func (b BuildConfig) String() string {
@@ -30,4 +45,5 @@ func (b BuildConfig) String() string {
 
 var DefaultBuildConfig = BuildConfig{
 	BuildMode: BuildModeConv,
+	Ignore:    map[IgnoreType]any{},
 }
