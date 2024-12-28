@@ -90,53 +90,6 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 	return funcName
 }
 
-func convArrayToSlice(v types.Type) (s *types.Slice, isArray, ok bool) {
-	if s, ok = v.Underlying().(*types.Slice); ok {
-		return s, false, true
-	}
-	if arr, ok := v.Underlying().(*types.Array); ok {
-		return types.NewSlice(arr.Elem()), true, true
-	}
-	return nil, false, false
-}
-
-func convSliceToArray(v types.Type) (arr *types.Array, isSlice, ok bool) {
-	if arr, ok = v.Underlying().(*types.Array); ok {
-		return arr, false, true
-	}
-	if s, ok := v.Underlying().(*types.Slice); ok {
-		// we can't define the length
-		return types.NewArray(s.Elem(), -1), true, true
-	}
-	return nil, false, false
-}
-
-func isStruct(v types.Type) (named, ok bool) {
-	if _, ok := v.(*types.Struct); ok {
-		return false, true
-	}
-	// check if src is a Named struct
-	if namedTypes, ok := v.(*types.Named); ok {
-		if _, ok := namedTypes.Underlying().(*types.Struct); ok {
-			return true, true
-
-		}
-	}
-	return false, false
-}
-
-func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
-	if strut, ok := v.Underlying().(*types.Struct); ok {
-		return strut, false, true
-	}
-	if ptr, ok := v.Underlying().(*types.Pointer); ok {
-		if strut, ok := ptr.Elem().Underlying().(*types.Struct); ok {
-			return strut, true, true
-		}
-	}
-	return nil, false, false
-}
-
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	var stmts []ast.Stmt
 	// exactly same type
@@ -177,7 +130,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	for _, filter := range b.buildConfig.Filter {
 		if b.fieldPath.matchFilter(filter, src) {
 			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply filter option on %s", filter.FuncName)))
-			assignStmt := buildAssignStmt(src.Name(), fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
+			newSrcName := "filtered" + cleanName(src.Name())
+			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
+			src = types.NewVar(0, b.types, newSrcName, src.Type())
 			stmts = append(stmts, assignStmt)
 		}
 	}
@@ -209,7 +164,6 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			stmts = append(stmts, assignStmt)
 			return stmts
 		}
-
 		_, depth, _ := dePointer(dstType)
 		if depth != 1 {
 			b.logger.Printf("omit %s :only support one level pointer", dst.Name())
@@ -591,6 +545,53 @@ func addressName(name string, addrDepth int) string {
 		addrDepth--
 	}
 	return name
+}
+
+func convArrayToSlice(v types.Type) (s *types.Slice, isArray, ok bool) {
+	if s, ok = v.Underlying().(*types.Slice); ok {
+		return s, false, true
+	}
+	if arr, ok := v.Underlying().(*types.Array); ok {
+		return types.NewSlice(arr.Elem()), true, true
+	}
+	return nil, false, false
+}
+
+func convSliceToArray(v types.Type) (arr *types.Array, isSlice, ok bool) {
+	if arr, ok = v.Underlying().(*types.Array); ok {
+		return arr, false, true
+	}
+	if s, ok := v.Underlying().(*types.Slice); ok {
+		// we can't define the length
+		return types.NewArray(s.Elem(), -1), true, true
+	}
+	return nil, false, false
+}
+
+func isStruct(v types.Type) (named, ok bool) {
+	if _, ok := v.(*types.Struct); ok {
+		return false, true
+	}
+	// check if src is a Named struct
+	if namedTypes, ok := v.(*types.Named); ok {
+		if _, ok := namedTypes.Underlying().(*types.Struct); ok {
+			return true, true
+
+		}
+	}
+	return false, false
+}
+
+func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
+	if strut, ok := v.Underlying().(*types.Struct); ok {
+		return strut, false, true
+	}
+	if ptr, ok := v.Underlying().(*types.Pointer); ok {
+		if strut, ok := ptr.Elem().Underlying().(*types.Struct); ok {
+			return strut, true, true
+		}
+	}
+	return nil, false, false
 }
 
 // matchField find a matched Field in srcStruct with dstField

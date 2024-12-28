@@ -7,11 +7,11 @@ import (
 	"strconv"
 )
 
-// BasicToBasic conv a Basic to b Basic
+// Struct2Struct conv a Basic to b Basic
 // go-conv:generate
 // go-conv:apply basicConvOpts
 var (
-	BasicToBasic func(p *a.Struct) *b.Struct
+	Struct2Struct func(p *a.Struct) *b.Struct
 )
 
 var basicConvOpts = []option.Option{

@@ -16,11 +16,11 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		// apply transfer option on transfer
 		dst.Student2.Class.Grade = transfer(src.Student2.Class.Grade)
 		// apply filter option on filter
-		src.Student2.Teachers = filter(src.Student2.Teachers)
-		dst.Student2.Teachers = src.Student2.Teachers
+		filteredSrcStudent2Teachers := filter(src.Student2.Teachers)
+		dst.Student2.Teachers = filteredSrcStudent2Teachers
 	}
 	return
 }
 func init() {
-	BasicToBasic = PtrAStructToPtrBStruct
+	Struct2Struct = PtrAStructToPtrBStruct
 }
