@@ -24,7 +24,6 @@ func NewImporter(curPkgPath string) *Importer {
 }
 
 func (i *Importer) ImportType(t types.Type) string {
-
 	var typeName string
 	var typPrefix string
 	var pkg *types.Package

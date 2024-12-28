@@ -417,9 +417,11 @@ func CopyPtrASliceAliPtrToPtrBSliceAli(src *a.SliceAliPtr) (dst *b.SliceAli) {
 	if src != nil {
 		dst = new(b.SliceAli)
 		if src.Name != nil {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
+			if len((*src.Name)) > 0 {
+				dst.Name = make([]string, len((*src.Name)))
+				for i := 0; i < len((*src.Name)); i++ {
+					dst.Name[i] = (*src.Name)[i]
+				}
 			}
 		}
 	}
@@ -430,9 +432,11 @@ func CopyPtrASliceAliPtrToPtrBSliceAliPtr(src *a.SliceAliPtr) (dst *b.SliceAliPt
 		dst = new(b.SliceAliPtr)
 		if src.Name != nil {
 			dst.Name = new(b.AliasSlice)
-			*dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				(*dst.Name)[i] = (*src.Name)[i]
+			if len((*src.Name)) > 0 {
+				*dst.Name = make([]string, len((*src.Name)))
+				for i := 0; i < len((*src.Name)); i++ {
+					(*dst.Name)[i] = (*src.Name)[i]
+				}
 			}
 		}
 	}
@@ -460,9 +464,11 @@ func CopyPtrASliceAliToPtrBArrayAliPtr(src *a.SliceAli) (dst *b.ArrayAliPtr) {
 func CopyPtrASliceAliToPtrBSliceAli(src *a.SliceAli) (dst *b.SliceAli) {
 	if src != nil {
 		dst = new(b.SliceAli)
-		dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			dst.Name[i] = src.Name[i]
+		if len(src.Name) > 0 {
+			dst.Name = make([]string, len(src.Name))
+			for i := 0; i < len(src.Name); i++ {
+				dst.Name[i] = src.Name[i]
+			}
 		}
 	}
 	return
@@ -471,9 +477,11 @@ func CopyPtrASliceAliToPtrBSliceAliPtr(src *a.SliceAli) (dst *b.SliceAliPtr) {
 	if src != nil {
 		dst = new(b.SliceAliPtr)
 		dst.Name = new(b.AliasSlice)
-		*dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			(*dst.Name)[i] = src.Name[i]
+		if len(src.Name) > 0 {
+			*dst.Name = make([]string, len(src.Name))
+			for i := 0; i < len(src.Name); i++ {
+				(*dst.Name)[i] = src.Name[i]
+			}
 		}
 	}
 	return

@@ -28,6 +28,14 @@ func buildAssignStmt(lh string, rh string) *ast.AssignStmt {
 	}
 }
 
+func buildDefineStmt(lh string, rh string) *ast.AssignStmt {
+	return &ast.AssignStmt{
+		Lhs: []ast.Expr{ast.NewIdent(lh)},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{ast.NewIdent(rh)},
+	}
+}
+
 func buildVarDecl(varName string, typeName string) *ast.DeclStmt {
 	return &ast.DeclStmt{
 		Decl: &ast.GenDecl{

@@ -20,8 +20,28 @@ type Package struct {
 	Dir string
 }
 
+type Transfer struct {
+	From, To string
+	FuncName string
+	Paths    []string
+}
+
+type Filter struct {
+	typ      string
+	FuncName string
+	Paths    []string
+}
+
 type BuildConfig struct {
 	BuildMode BuildMode
+	Ignore    []IgnoreType
+	Transfer  []Transfer
+	Filter    []Filter
+}
+
+type IgnoreType struct {
+	typ    string
+	fields []string
 }
 
 func (b BuildConfig) String() string {
