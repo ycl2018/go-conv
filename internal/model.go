@@ -20,9 +20,23 @@ type Package struct {
 	Dir string
 }
 
+type Transfer struct {
+	From, To string
+	FuncName string
+	Paths    []string
+}
+
+type Filter struct {
+	typ      string
+	FuncName string
+	Paths    []string
+}
+
 type BuildConfig struct {
 	BuildMode BuildMode
-	Ignore    map[IgnoreType]any
+	Ignore    []IgnoreType
+	Transfer  []Transfer
+	Filter    []Filter
 }
 
 type IgnoreKind int
@@ -35,8 +49,8 @@ const (
 )
 
 type IgnoreType struct {
-	typ  types.Type
-	kind IgnoreKind
+	typ    string
+	fields []string
 }
 
 func (b BuildConfig) String() string {
@@ -45,5 +59,4 @@ func (b BuildConfig) String() string {
 
 var DefaultBuildConfig = BuildConfig{
 	BuildMode: BuildModeConv,
-	Ignore:    map[IgnoreType]any{},
 }

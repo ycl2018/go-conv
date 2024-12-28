@@ -7,10 +7,20 @@ import (
 	"github.com/ycl2018/go-conv/testdata/b"
 )
 
-func PtrABasicToPtrBBasic(src *a.Basic) (dst *b.Basic) {
-	dst = (*b.Basic)(src)
+func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
+	if src != nil {
+		dst = new(b.Struct)
+		// apply ignore option on src.Student
+		dst.Student2.Name = src.Student2.Name
+		dst.Student2.Class.Name = src.Student2.Class.Name
+		// apply transfer option on transfer
+		dst.Student2.Class.Grade = transfer(src.Student2.Class.Grade)
+		// apply filter option on filter
+		src.Student2.Teachers = filter(src.Student2.Teachers)
+		dst.Student2.Teachers = src.Student2.Teachers
+	}
 	return
 }
 func init() {
-	BasicToBasic = PtrABasicToPtrBBasic
+	BasicToBasic = PtrAStructToPtrBStruct
 }

@@ -80,9 +80,11 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 }
 
 const (
-	applyOptionsType = "[]github.com/ycl2018/go-conv/option.Option"
-	ignoreFieldsFunc = "WithIgnoreFields"
-	ignoreTypesFunc  = "WithIgnoreTypes"
+	applyOptionsType   = "[]github.com/ycl2018/go-conv/option.Option"
+	ignoreFieldsOption = "WithIgnoreFields"
+	ignoreTypesOption  = "WithIgnoreTypes"
+	transformerOption  = "WithTransformer"
+	filterOption       = "WithFilter"
 )
 
 type CommentParser struct {
@@ -143,33 +145,96 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 				continue
 			}
 			optionFn := callExpr.Fun.(*ast.SelectorExpr).Sel.Name
-			DefaultLogger.Printf("%s", optionFn)
 			switch optionFn {
-			case ignoreFieldsFunc:
+			case ignoreFieldsOption:
 				structType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
 				var ignoreFields []string
 				ast.Inspect(callExpr.Args[1], func(n ast.Node) bool {
 					if basicLit, ok := n.(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
-						ignoreFields = append(ignoreFields, basicLit.Value)
+						ignoreFields = append(ignoreFields, strings.Trim(basicLit.Value, "\""))
 					}
 					return true
 				})
+				ret.Ignore = append(ret.Ignore, IgnoreType{
+					typ:    structType.String(),
+					fields: ignoreFields,
+				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v",
 					c.pkg.Fset.Position(elt.Pos()), structType, ignoreFields)
-				ret.Ignore[IgnoreType{
-					typ:  structType,
-					kind: IgnoreStructFields,
-				}] = ignoreFields
-			case ignoreTypesFunc:
+			case ignoreTypesOption:
 				for _, arg := range callExpr.Args {
 					ignoreType := c.pkg.TypesInfo.TypeOf(arg)
-					ret.Ignore[IgnoreType{
-						typ:  ignoreType,
-						kind: IgnoreTypes,
-					}] = struct{}{}
+					ret.Ignore = append(ret.Ignore, IgnoreType{
+						typ: ignoreType.String(),
+					})
 					DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s",
 						c.pkg.Fset.Position(elt.Pos()), ignoreType)
 				}
+			case transformerOption:
+				transferFuncName, ok := callExpr.Args[0].(*ast.Ident)
+				if !ok {
+					return fmt.Errorf("%s:should be a funcName, not support anonymous function",
+						c.pkg.Fset.Position(callExpr.Args[0].Pos()))
+				}
+				transfer, ok := c.pkg.TypesInfo.TypeOf(callExpr.Args[0]).(*types.Signature)
+				if !ok {
+					return fmt.Errorf("%s:%s shoule be signature func(T)V", transferFuncName,
+						c.pkg.Fset.Position(callExpr.Pos()))
+				}
+				if transfer.Params().Len() != 1 || transfer.Results().Len() != 1 {
+					return fmt.Errorf("%s:%s shoule be signature func(T)V", transferFuncName,
+						c.pkg.Fset.Position(callExpr.Pos()))
+				}
+				from, to := transfer.Params().At(0).Type(), transfer.Results().At(0).Type()
+				var paths []string
+				if len(callExpr.Args) > 1 {
+					for i := 1; i < len(callExpr.Args); i++ {
+						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
+					}
+				}
+				ret.Transfer = append(ret.Transfer, Transfer{
+					From:     from.String(),
+					To:       to.String(),
+					FuncName: transferFuncName.Name,
+					Paths:    paths,
+				})
+				DefaultLogger.Printf("[go-conv] find comment on %s: config transfer %s",
+					c.pkg.Fset.Position(elt.Pos()), transferFuncName)
+			case filterOption:
+				filterFuncName, ok := callExpr.Args[0].(*ast.Ident)
+				if !ok {
+					return fmt.Errorf("%s:should be a funcName, not support anonymous function",
+						c.pkg.Fset.Position(callExpr.Args[0].Pos()))
+				}
+				transfer, ok := c.pkg.TypesInfo.TypeOf(callExpr.Args[0]).(*types.Signature)
+				if !ok {
+					return fmt.Errorf("%s:%s shoule be signature func(T)T", filterFuncName,
+						c.pkg.Fset.Position(callExpr.Pos()))
+				}
+				if transfer.Params().Len() != 1 || transfer.Results().Len() != 1 {
+					return fmt.Errorf("%s:%s shoule be signature func(T)T", filterFuncName,
+						c.pkg.Fset.Position(callExpr.Pos()))
+				}
+				from, to := transfer.Params().At(0).Type(), transfer.Results().At(0).Type()
+				if from.String() != to.String() {
+					return fmt.Errorf("%s:%s shoule be signature func(T)T", filterFuncName,
+						c.pkg.Fset.Position(callExpr.Pos()))
+				}
+				var paths []string
+				if len(callExpr.Args) > 1 {
+					for i := 1; i < len(callExpr.Args); i++ {
+						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
+					}
+				}
+				ret.Filter = append(ret.Filter, Filter{
+					typ:      from.String(),
+					FuncName: filterFuncName.Name,
+					Paths:    paths,
+				})
+				DefaultLogger.Printf("[go-conv] find comment on %s: config filter %s",
+					c.pkg.Fset.Position(elt.Pos()), filterFuncName)
+			default:
+				panic("expect unreachable")
 			}
 		}
 

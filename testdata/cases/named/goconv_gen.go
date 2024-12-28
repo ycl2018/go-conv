@@ -376,9 +376,11 @@ func CopyPtrASliceNPtrToPtrBSliceN(src *a.SliceNPtr) (dst *b.SliceN) {
 	if src != nil {
 		dst = new(b.SliceN)
 		if src.Name != nil {
-			dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				dst.Name[i] = (*src.Name)[i]
+			if len((*src.Name)) > 0 {
+				dst.Name = make([]string, len((*src.Name)))
+				for i := 0; i < len((*src.Name)); i++ {
+					dst.Name[i] = (*src.Name)[i]
+				}
 			}
 		}
 	}
@@ -389,9 +391,11 @@ func CopyPtrASliceNPtrToPtrBSliceNPtr(src *a.SliceNPtr) (dst *b.SliceNPtr) {
 		dst = new(b.SliceNPtr)
 		if src.Name != nil {
 			dst.Name = new(b.NamedSlice)
-			*dst.Name = make([]string, len((*src.Name)))
-			for i := 0; i < len((*src.Name)); i++ {
-				(*dst.Name)[i] = (*src.Name)[i]
+			if len((*src.Name)) > 0 {
+				*dst.Name = make([]string, len((*src.Name)))
+				for i := 0; i < len((*src.Name)); i++ {
+					(*dst.Name)[i] = (*src.Name)[i]
+				}
 			}
 		}
 	}
@@ -419,9 +423,11 @@ func CopyPtrASliceNToPtrBArrayNPtr(src *a.SliceN) (dst *b.ArrayNPtr) {
 func CopyPtrASliceNToPtrBSliceN(src *a.SliceN) (dst *b.SliceN) {
 	if src != nil {
 		dst = new(b.SliceN)
-		dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			dst.Name[i] = src.Name[i]
+		if len(src.Name) > 0 {
+			dst.Name = make([]string, len(src.Name))
+			for i := 0; i < len(src.Name); i++ {
+				dst.Name[i] = src.Name[i]
+			}
 		}
 	}
 	return
@@ -430,9 +436,11 @@ func CopyPtrASliceNToPtrBSliceNPtr(src *a.SliceN) (dst *b.SliceNPtr) {
 	if src != nil {
 		dst = new(b.SliceNPtr)
 		dst.Name = new(b.NamedSlice)
-		*dst.Name = make([]string, len(src.Name))
-		for i := 0; i < len(src.Name); i++ {
-			(*dst.Name)[i] = src.Name[i]
+		if len(src.Name) > 0 {
+			*dst.Name = make([]string, len(src.Name))
+			for i := 0; i < len(src.Name); i++ {
+				(*dst.Name)[i] = src.Name[i]
+			}
 		}
 	}
 	return

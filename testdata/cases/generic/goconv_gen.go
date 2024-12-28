@@ -20,9 +20,11 @@ func PtrAGenericStringIntToPtrBGenericStringInt64(src *a.Generic[string, int]) (
 				dst.Map[tmpK] = tmpV
 			}
 		}
-		dst.Slice = make([]int64, len(src.Slice))
-		for i := 0; i < len(src.Slice); i++ {
-			dst.Slice[i] = int64(src.Slice[i])
+		if len(src.Slice) > 0 {
+			dst.Slice = make([]int64, len(src.Slice))
+			for i := 0; i < len(src.Slice); i++ {
+				dst.Slice[i] = int64(src.Slice[i])
+			}
 		}
 		for i := 0; i < 3; i++ {
 			dst.Array[i] = int64(src.Array[i])
@@ -41,30 +43,40 @@ func PtrAGenericStringSliceIntToPtrBGenericStringSliceInt64(src *a.Generic[strin
 				var tmpK string
 				var tmpV []int64
 				tmpK = k
-				tmpV = make([]int64, len(v))
-				for i := 0; i < len(v); i++ {
-					tmpV[i] = int64(v[i])
+				if len(v) > 0 {
+					tmpV = make([]int64, len(v))
+					for i := 0; i < len(v); i++ {
+						tmpV[i] = int64(v[i])
+					}
 				}
 				dst.Map[tmpK] = tmpV
 			}
 		}
-		dst.Slice = make([][]int64, len(src.Slice))
-		for i := 0; i < len(src.Slice); i++ {
-			dst.Slice[i] = make([]int64, len(src.Slice[i]))
-			for i := 0; i < len(src.Slice[i]); i++ {
-				dst.Slice[i][i] = int64(src.Slice[i][i])
+		if len(src.Slice) > 0 {
+			dst.Slice = make([][]int64, len(src.Slice))
+			for i := 0; i < len(src.Slice); i++ {
+				if len(src.Slice[i]) > 0 {
+					dst.Slice[i] = make([]int64, len(src.Slice[i]))
+					for i := 0; i < len(src.Slice[i]); i++ {
+						dst.Slice[i][i] = int64(src.Slice[i][i])
+					}
+				}
 			}
 		}
 		for i := 0; i < 3; i++ {
-			dst.Array[i] = make([]int64, len(src.Array[i]))
-			for i := 0; i < len(src.Array[i]); i++ {
-				dst.Array[i][i] = int64(src.Array[i][i])
+			if len(src.Array[i]) > 0 {
+				dst.Array[i] = make([]int64, len(src.Array[i]))
+				for i := 0; i < len(src.Array[i]); i++ {
+					dst.Array[i][i] = int64(src.Array[i][i])
+				}
 			}
 		}
 		dst.K = src.K
-		dst.V = make([]int64, len(src.V))
-		for i := 0; i < len(src.V); i++ {
-			dst.V[i] = int64(src.V[i])
+		if len(src.V) > 0 {
+			dst.V = make([]int64, len(src.V))
+			for i := 0; i < len(src.V); i++ {
+				dst.V[i] = int64(src.V[i])
+			}
 		}
 	}
 	return

@@ -39,6 +39,7 @@ type Builder struct {
 	genFunc     map[string]*ast.FuncDecl
 	rootNode    bool
 	buildConfig BuildConfig
+	fieldPath   path
 	logger      *Logger
 }
 
@@ -139,7 +140,7 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	var stmts []ast.Stmt
 	// exactly same type
-	if types.AssignableTo(src.Type(), dst.Type()) && src.Type().String() == dst.Type().String() {
+	if src.Type().String() == dst.Type().String() {
 		var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 		stmts = append(stmts, assignmentStmt)
 		return stmts, true
@@ -157,9 +158,33 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		b.rootNode = false
 	}()
 	var stmts []ast.Stmt
+	// ignore
+	for _, ignoreType := range b.buildConfig.Ignore {
+		if b.fieldPath.matchIgnore(ignoreType) {
+			return append(stmts, buildCommentExpr(fmt.Sprintf("apply ignore option on %s", src.Name())))
+		}
+	}
+	// transfer
+	for _, transfer := range b.buildConfig.Transfer {
+		if b.fieldPath.matchTransfer(transfer, dst, src) {
+			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply transfer option on %s", transfer.FuncName)))
+			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", transfer.FuncName, src.Name()))
+			stmts = append(stmts, assignStmt)
+			return stmts
+		}
+	}
+	// filter
+	for _, filter := range b.buildConfig.Filter {
+		if b.fieldPath.matchFilter(filter, src) {
+			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply filter option on %s", filter.FuncName)))
+			assignStmt := buildAssignStmt(src.Name(), fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
+			stmts = append(stmts, assignStmt)
+		}
+	}
+
 	if b.buildConfig.BuildMode == BuildModeConv {
 		if ret, ok := b._shallowCopy(dst, src); ok {
-			return ret
+			return append(stmts, ret...)
 		}
 	}
 	switch dstType := dst.Type().(type) {
@@ -212,8 +237,6 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		return stmts
 	case *types.Named:
 		dstUnderType := dstType.Underlying()
-		var srcType = src.Type()
-		var srcName = src.Name()
 		switch dstUnderType.(type) {
 		case *types.Basic, *types.Struct: // for named basic/struct type is a special basic type
 			if _, ok := dstUnderType.(*types.Struct); ok {
@@ -222,6 +245,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 			}
 			srcElemType, ptrDepth, isPtr := dePointer(src.Type())
+			var srcName = src.Name()
 			if ptrDepth < 2 && types.ConvertibleTo(srcElemType, dstType) {
 				srcName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), ptrToName(srcName, ptrDepth))
 				if !isPtr { // not a Pointer
@@ -236,16 +260,15 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			}
 		}
 		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
-		srcUnderVar := types.NewVar(0, b.types, srcName, srcType)
-		return b.buildStmt(dstUnderVar, srcUnderVar)
+		return b.buildStmt(dstUnderVar, src)
 	case *types.Struct:
-		srcType, isPtr, ok := convPtrToStruct(src.Type())
+		srcStructType, isPtr, ok := convPtrToStruct(src.Type())
 		if !ok {
 			b.logger.Printf("omit %s :%s type is not a struct/pointer to struct", dst.Name(), src.Name())
 			return append(stmts, buildCommentExpr("omit "+dst.Name()))
 		}
 		if isPtr {
-			stmts = b.dePointerSrcStmt(dst, src, srcType)
+			stmts = append(stmts, b.dePointerSrcStmt(dst, src, srcStructType)...)
 			return stmts
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
@@ -258,19 +281,19 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			dstFieldName := dstField.Name()
 			if dstField.Embedded() {
 				dstVar := types.NewVar(0, b.types, dstName+"."+dstFieldName, dstField.Type())
-				srcVar := types.NewVar(0, b.types, src.Name(), src.Type())
-				fieldStmt := b.buildStmt(dstVar, srcVar)
+				fieldStmt := b.buildStmt(dstVar, src)
 				stmts = append(stmts, fieldStmt...)
 				continue
 			}
 			// match srcField
-			if srcField, ok := matchField(dstField, srcType); ok {
+			if srcField, ok := b.matchField(dstField, srcStructType, src.Type().String()); ok {
 				dstVarName := dstName + "." + dstFieldName
 				srcVarName := srcName + "." + srcField.Name()
 				dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
 				srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
+				b.fieldPath.pop()
 			} else {
 				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
@@ -411,11 +434,6 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			return b.dePointerSrcStmt(dst, src, srcElemType)
 		}
 		var srcName = src.Name()
-		if !isArray {
-			ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
-			stmts = append(stmts, ifStmt)
-			stmts = ifStmt.Body.List
-		}
 		mkStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
 			Tok: token.ASSIGN,
@@ -437,7 +455,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			},
 		}
-		stmts = append(stmts, mkStmt)
+
 		// for i := 0; i<n ; i++ {}
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
@@ -463,7 +481,15 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		srcElemVar := types.NewVar(0, b.types, srcName+"[i]", srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
-		stmts = append(stmts, forStmt)
+		if !isArray {
+			ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
+			stmts = append(stmts, ifStmt)
+			ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
+			ifStmt.Body.List = append(ifStmt.Body.List, forStmt)
+		} else {
+			stmts = append(stmts, mkStmt)
+			stmts = append(stmts, forStmt)
+		}
 		return stmts
 	case *types.Basic:
 		// check if src pointer to elem can convert to dst
@@ -568,7 +594,7 @@ func addressName(name string, addrDepth int) string {
 }
 
 // matchField find a matched Field in srcStruct with dstField
-func matchField(dstField *types.Var, srcStruct *types.Struct) (matched *types.Var, match bool) {
+func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTypeString string) (matched *types.Var, match bool) {
 	// by name
 	for i := range srcStruct.NumFields() {
 		srcField := srcStruct.Field(i)
@@ -576,11 +602,12 @@ func matchField(dstField *types.Var, srcStruct *types.Struct) (matched *types.Va
 			continue
 		}
 		if srcField.Name() == dstField.Name() {
+			b.fieldPath.Push(fieldStep{name: srcField.Name(), structName: srcTypeString})
 			return srcField, true
 		}
 		if srcField.Embedded() {
 			if embedStruct, ok := srcField.Type().Underlying().(*types.Struct); ok {
-				if v, ok := matchField(dstField, embedStruct); ok {
+				if v, ok := b.matchField(dstField, embedStruct, srcField.Type().String()); ok {
 					return v, true
 				}
 			}
@@ -643,4 +670,8 @@ func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) stri
 		return "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
 	}
 	return cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+}
+
+func (b *Builder) matchPath(s string) bool {
+	return false
 }

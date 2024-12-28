@@ -4,12 +4,12 @@ package option
 type Option struct{}
 
 // WithIgnoreFields specify fields of struct to ignore in convert
-func WithIgnoreFields(structObj any, fields []string) Option {
+func WithIgnoreFields(structObj any, fields []string, path ...string) Option {
 	return Option{}
 }
 
 // WithIgnoreTypes specify types to ignore in convert
-func WithIgnoreTypes(types ...any) Option {
+func WithIgnoreTypes(types []any, path ...string) Option {
 	return Option{}
 }
 
