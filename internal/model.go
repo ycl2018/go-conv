@@ -39,15 +39,6 @@ type BuildConfig struct {
 	Filter    []Filter
 }
 
-type IgnoreKind int
-
-const (
-	IgnoreStructFields = iota + 1
-	IgnoreSliceIndexes
-	IgnoreMapKeys
-	IgnoreTypes
-)
-
 type IgnoreType struct {
 	typ    string
 	fields []string
