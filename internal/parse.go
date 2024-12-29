@@ -155,21 +155,33 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 					}
 					return true
 				})
-				ret.Ignore = append(ret.Ignore, IgnoreType{
-					typ:    structType.String(),
-					fields: ignoreFields,
-				})
-				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v",
-					c.pkg.Fset.Position(elt.Pos()), structType, ignoreFields)
-			case ignoreTypesOption:
-				for _, arg := range callExpr.Args {
-					ignoreType := c.pkg.TypesInfo.TypeOf(arg)
-					ret.Ignore = append(ret.Ignore, IgnoreType{
-						typ: ignoreType.String(),
-					})
-					DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s",
-						c.pkg.Fset.Position(elt.Pos()), ignoreType)
+				var paths []string
+				if len(callExpr.Args) > 2 {
+					for i := 2; i < len(callExpr.Args); i++ {
+						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
+					}
 				}
+				ret.Ignore = append(ret.Ignore, IgnoreType{
+					Tye:    structType.String(),
+					Fields: ignoreFields,
+					Paths:  paths,
+				})
+				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v with paths:%v",
+					c.pkg.Fset.Position(elt.Pos()), structType, ignoreFields, paths)
+			case ignoreTypesOption:
+				ignoreType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
+				var paths []string
+				if len(callExpr.Args) > 1 {
+					for i := 1; i < len(callExpr.Args); i++ {
+						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
+					}
+				}
+				ret.Ignore = append(ret.Ignore, IgnoreType{
+					Tye:   ignoreType.String(),
+					Paths: paths,
+				})
+				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s with paths:%v",
+					c.pkg.Fset.Position(elt.Pos()), ignoreType, paths)
 			case transformerOption:
 				transferFuncName, ok := callExpr.Args[0].(*ast.Ident)
 				if !ok {
@@ -198,8 +210,9 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 					FuncName: transferFuncName.Name,
 					Paths:    paths,
 				})
-				DefaultLogger.Printf("[go-conv] find comment on %s: config transfer %s",
-					c.pkg.Fset.Position(elt.Pos()), transferFuncName)
+				DefaultLogger.Printf("[go-conv] find comment on %s: config transfer %s from:%s to %s with "+
+					"paths:%s",
+					c.pkg.Fset.Position(elt.Pos()), transferFuncName, from.String(), to.String(), paths)
 			case filterOption:
 				filterFuncName, ok := callExpr.Args[0].(*ast.Ident)
 				if !ok {
@@ -227,12 +240,12 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 					}
 				}
 				ret.Filter = append(ret.Filter, Filter{
-					typ:      from.String(),
+					Typ:      from.String(),
 					FuncName: filterFuncName.Name,
 					Paths:    paths,
 				})
-				DefaultLogger.Printf("[go-conv] find comment on %s: config filter %s",
-					c.pkg.Fset.Position(elt.Pos()), filterFuncName)
+				DefaultLogger.Printf("[go-conv] find comment on %s: config filter %s on %s with paths:%s",
+					c.pkg.Fset.Position(elt.Pos()), filterFuncName, from.String(), paths)
 			default:
 				panic("expect unreachable")
 			}

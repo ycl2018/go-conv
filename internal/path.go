@@ -20,20 +20,26 @@ func (p *path) pop() {
 	*p = (*p)[:len(*p)-1]
 }
 
-func (p *path) matchIgnore(ignoreType IgnoreType) bool {
-	i, j := len(*p)-1, len(ignoreType.fields)-1
+func (p *path) matchIgnore(ignoreType IgnoreType, srcType types.Type) bool {
+	if len(ignoreType.Fields) == 0 {
+		return p.matchFilter(Filter{
+			Typ:   ignoreType.Tye,
+			Paths: ignoreType.Paths,
+		}, srcType)
+	}
+	i, j := len(*p)-1, len(ignoreType.Fields)-1
 	if i < j {
 		return false
 	}
 	for j >= 0 {
-		if (*p)[i].name != ignoreType.fields[j] {
+		if (*p)[i].name != ignoreType.Fields[j] {
 			return false
 		}
 		j--
 		i--
 	}
 	// check type
-	if ignoreType.typ != (*p)[i+1].structName {
+	if ignoreType.Tye != (*p)[i+1].structName {
 		return false
 	}
 	return true
@@ -66,8 +72,8 @@ func (p *path) matchTransfer(transfer Transfer, dst *types.Var, src *types.Var) 
 	return false
 }
 
-func (p *path) matchFilter(filter Filter, src *types.Var) bool {
-	if src.Type().String() != filter.typ {
+func (p *path) matchFilter(filter Filter, src types.Type) bool {
+	if src.String() != filter.Typ {
 		return false
 	}
 	if len(filter.Paths) == 0 {
@@ -79,14 +85,18 @@ func (p *path) matchFilter(filter Filter, src *types.Var) bool {
 		if i != j {
 			continue
 		}
+		var valid = true
 		for j >= 0 {
 			if (*p)[i].name != ss[j] {
-				continue
+				valid = false
+				break
 			}
 			j--
 			i--
 		}
-		return true
+		if valid {
+			return true
+		}
 	}
 	return false
 }

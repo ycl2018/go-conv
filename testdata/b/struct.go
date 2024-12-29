@@ -3,6 +3,7 @@ package b
 type Struct struct {
 	Student  Student
 	Student2 Student
+	Student3 Student
 }
 
 type Student struct {

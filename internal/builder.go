@@ -113,7 +113,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	var stmts []ast.Stmt
 	// ignore
 	for _, ignoreType := range b.buildConfig.Ignore {
-		if b.fieldPath.matchIgnore(ignoreType) {
+		if b.fieldPath.matchIgnore(ignoreType, src.Type()) {
 			return append(stmts, buildCommentExpr(fmt.Sprintf("apply ignore option on %s", src.Name())))
 		}
 	}
@@ -128,7 +128,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	}
 	// filter
 	for _, filter := range b.buildConfig.Filter {
-		if b.fieldPath.matchFilter(filter, src) {
+		if b.fieldPath.matchFilter(filter, src.Type()) {
 			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply filter option on %s", filter.FuncName)))
 			newSrcName := "filtered" + cleanName(src.Name())
 			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))

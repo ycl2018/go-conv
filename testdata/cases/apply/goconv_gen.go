@@ -18,6 +18,7 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		// apply filter option on filter
 		filteredSrcStudent2Teachers := filter(src.Student2.Teachers)
 		dst.Student2.Teachers = filteredSrcStudent2Teachers
+		// apply ignore option on src.Student3
 	}
 	return
 }

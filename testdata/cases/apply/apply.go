@@ -16,6 +16,7 @@ var (
 
 var basicConvOpts = []option.Option{
 	option.WithIgnoreFields(a.Struct{}, []string{"Student"}),
+	option.WithIgnoreTypes(a.Student{}, "Student3"),
 	option.WithTransformer(transfer, "Student2.Class.Grade"),
 	option.WithFilter(filter, "Student2.Teachers"),
 }
