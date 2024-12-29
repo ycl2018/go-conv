@@ -27,7 +27,7 @@ type Transfer struct {
 }
 
 type Filter struct {
-	typ      string
+	Typ      string
 	FuncName string
 	Paths    []string
 }
@@ -40,8 +40,9 @@ type BuildConfig struct {
 }
 
 type IgnoreType struct {
-	typ    string
-	fields []string
+	Tye    string
+	Fields []string
+	Paths  []string
 }
 
 func (b BuildConfig) String() string {

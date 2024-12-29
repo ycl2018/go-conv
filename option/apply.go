@@ -9,7 +9,7 @@ func WithIgnoreFields(structObj any, fields []string, path ...string) Option {
 }
 
 // WithIgnoreTypes specify types to ignore in convert
-func WithIgnoreTypes(types []any, path ...string) Option {
+func WithIgnoreTypes(obj any, path ...string) Option {
 	return Option{}
 }
 
