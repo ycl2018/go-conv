@@ -127,7 +127,6 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 		return fmt.Errorf("%s:not Option Slice", c.pkg.Fset.Position(comment.Slash))
 	}
 	nodes, _ := astutil.PathEnclosingInterval(astFile, applyValue.Pos(), applyValue.Pos())
-	DefaultLogger.Notice("%s", nodes)
 
 	for _, node := range nodes {
 		vs, ok := node.(*ast.ValueSpec)
