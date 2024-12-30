@@ -33,11 +33,12 @@ type Filter struct {
 }
 
 type BuildConfig struct {
-	BuildMode BuildMode
-	NoInit    bool
-	Ignore    []IgnoreType
-	Transfer  []Transfer
-	Filter    []Filter
+	BuildMode    BuildMode
+	NoInit       bool
+	Ignore       []IgnoreType
+	Transfer     []Transfer
+	Filter       []Filter
+	FieldMatcher *FieldMatcher
 }
 
 type IgnoreType struct {
@@ -50,6 +51,9 @@ func (b BuildConfig) String() string {
 	return fmt.Sprintf("BuildConfig<BuildMode: %s>", b.BuildMode)
 }
 
-var DefaultBuildConfig = BuildConfig{
-	BuildMode: BuildModeConv,
+func DefaultBuildConfig() BuildConfig {
+	return BuildConfig{
+		BuildMode:    BuildModeConv,
+		FieldMatcher: NewFieldMatcher(),
+	}
 }
