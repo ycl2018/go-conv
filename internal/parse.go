@@ -45,12 +45,20 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 					if !isTarget {
 						continue
 					}
-					buildConfig, err := cp.Parse(astFile, gd.Doc)
+					buildConfig := DefaultBuildConfig()
+					err := cp.Parse(astFile, gd.Doc, &buildConfig)
 					if err != nil {
 						return nil, fmt.Errorf("[go-conv] parse comment err:%w", err)
 					}
 					for _, spec := range gd.Specs {
 						if vs, ok := spec.(*ast.ValueSpec); ok {
+							if vs.Doc != nil {
+								buildConfig = buildConfig.Clone()
+								err = cp.Parse(astFile, vs.Doc, &buildConfig)
+								if err != nil {
+									return nil, fmt.Errorf("[go-conv] parse comment err:%w", err)
+								}
+							}
 							tye := pkg.TypesInfo.TypeOf(vs.Type)
 							if sig, ok := tye.(*types.Signature); ok {
 								if sig.Params().Len() == 0 || sig.Results().Len() == 0 {
@@ -93,24 +101,23 @@ type CommentParser struct {
 	pkg *packages.Package
 }
 
-func (c CommentParser) Parse(astFile *ast.File, doc *ast.CommentGroup) (BuildConfig, error) {
-	var ret = DefaultBuildConfig()
+func (c CommentParser) Parse(astFile *ast.File, doc *ast.CommentGroup, config *BuildConfig) error {
 	if doc == nil {
-		return ret, nil
+		return nil
 	}
 	for _, comment := range doc.List {
 		if strings.Contains(comment.Text, "go-conv:copy") {
-			ret.BuildMode = BuildModeCopy
+			config.BuildMode = BuildModeCopy
 		} else if strings.Contains(comment.Text, "go-conv:conv") {
-			ret.BuildMode = BuildModeConv
+			config.BuildMode = BuildModeConv
 		} else if strings.Contains(comment.Text, "go-conv:apply") {
-			err := c.parseApply(astFile, comment, &ret)
+			err := c.parseApply(astFile, comment, config)
 			if err != nil {
-				return ret, err
+				return err
 			}
 		}
 	}
-	return ret, nil
+	return nil
 }
 
 func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *BuildConfig) error {
