@@ -85,6 +85,7 @@ const (
 	ignoreTypesOption  = "WithIgnoreTypes"
 	transformerOption  = "WithTransformer"
 	filterOption       = "WithFilter"
+	noInitOption       = "WithNoInitFunc"
 )
 
 type CommentParser struct {
@@ -247,6 +248,10 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config filter %s on %s with paths:%s",
 					c.pkg.Fset.Position(elt.Pos()), filterFuncName, from.String(), paths)
+			case noInitOption:
+				ret.NoInit = true
+				DefaultLogger.Printf("[go-conv] find comment on %s: config no generate init func",
+					c.pkg.Fset.Position(elt.Pos()))
 			default:
 				panic("expect unreachable")
 			}

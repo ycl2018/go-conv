@@ -24,3 +24,8 @@ func WithTransformer[T, V any](transformer func(T) V, path ...string) Option {
 func WithFilter[T any](filter func(T) T, path ...string) Option {
 	return Option{}
 }
+
+// WithNoInitFunc specify not generate init func
+func WithNoInitFunc() Option {
+	return Option{}
+}

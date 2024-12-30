@@ -19,6 +19,7 @@ import (
 var (
 	dryRun  = flag.Bool("n", false, "dry run: show changes, but don't apply them")
 	verbose = flag.Bool("v", false, "verbose: enable verbose output log")
+	output  = flag.String("o", GENFILENAME, "output: generate code to fileName")
 )
 
 // seams for testing
@@ -37,7 +38,8 @@ Hint: use "all" or "..." to match the entire workspace.
 
 Flags:
   -n:	       dry run: show generate code, but don't write it to file
-  -v:		   verbose: enable verbose output log
+  -v:	       verbose: enable verbose output log
+  -o:	       output: generate code to fileName
 `
 
 func main() {
@@ -97,7 +99,7 @@ func generate(patterns ...string) error {
 		if err != nil {
 			return err
 		}
-		err = writeToFile(p, GENFILENAME, content)
+		err = writeToFile(p, *output, content)
 		if err != nil {
 			return err
 		}
