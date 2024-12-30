@@ -635,9 +635,11 @@ func (b *Builder) Generate() ([]byte, error) {
 		b.f.Decls = append(b.f.Decls, b.genFunc[name])
 	}
 	// add init func
-	initFunc := b.GenInit()
-	b.f.Decls = append(b.f.Decls, initFunc)
-
+	if !b.buildConfig.NoInit {
+		initFunc := b.GenInit()
+		b.f.Decls = append(b.f.Decls, initFunc)
+	}
+	
 	// format
 	var buf bytes.Buffer
 	fileSet := token.NewFileSet()
@@ -676,8 +678,4 @@ func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) stri
 		return "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
 	}
 	return cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
-}
-
-func (b *Builder) matchPath(s string) bool {
-	return false
 }
