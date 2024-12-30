@@ -146,7 +146,6 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 			optionFn := callExpr.Fun.(*ast.SelectorExpr).Sel.Name
 			switch optionFn {
 			case ignoreFieldsOption:
-				structType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
 				var ignoreFields []string
 				ast.Inspect(callExpr.Args[1], func(n ast.Node) bool {
 					if basicLit, ok := n.(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
@@ -160,23 +159,26 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
 					}
 				}
+				structType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
+				elemType, _, _ := dePointer(structType)
 				ret.Ignore = append(ret.Ignore, IgnoreType{
-					Tye:    structType.String(),
+					Tye:    elemType.String(),
 					Fields: ignoreFields,
 					Paths:  paths,
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v with paths:%v",
 					c.pkg.Fset.Position(elt.Pos()), structType, ignoreFields, paths)
 			case ignoreTypesOption:
-				ignoreType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
 				var paths []string
 				if len(callExpr.Args) > 1 {
 					for i := 1; i < len(callExpr.Args); i++ {
 						paths = append(paths, strings.Trim(callExpr.Args[i].(*ast.BasicLit).Value, "\""))
 					}
 				}
+				ignoreType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
+				elemType, _, _ := dePointer(ignoreType)
 				ret.Ignore = append(ret.Ignore, IgnoreType{
-					Tye:   ignoreType.String(),
+					Tye:   elemType.String(),
 					Paths: paths,
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s with paths:%v",
