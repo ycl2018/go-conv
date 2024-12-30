@@ -114,12 +114,14 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	// ignore
 	for _, ignoreType := range b.buildConfig.Ignore {
 		if b.fieldPath.matchIgnore(ignoreType, src.Type()) {
+			b.logger.Printf("apply ignore on %s", src.Name())
 			return append(stmts, buildCommentExpr(fmt.Sprintf("apply ignore option on %s", src.Name())))
 		}
 	}
 	// transfer
 	for _, transfer := range b.buildConfig.Transfer {
 		if b.fieldPath.matchTransfer(transfer, dst, src) {
+			b.logger.Printf("apply transfer on %s", src.Name())
 			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply transfer option on %s", transfer.FuncName)))
 			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", transfer.FuncName, src.Name()))
 			stmts = append(stmts, assignStmt)
@@ -129,6 +131,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	// filter
 	for _, filter := range b.buildConfig.Filter {
 		if b.fieldPath.matchFilter(filter, src.Type()) {
+			b.logger.Printf("apply filter on %s", src.Name())
 			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply filter option on %s", filter.FuncName)))
 			newSrcName := "filtered" + cleanName(src.Name())
 			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
@@ -201,6 +204,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			srcElemType, ptrDepth, isPtr := dePointer(src.Type())
 			var srcName = src.Name()
 			if ptrDepth < 2 && types.ConvertibleTo(srcElemType, dstType) {
+				b.logger.Printf("convert:%s to %s", srcElemType.String(), dstType.String())
 				srcName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), ptrToName(srcName, ptrDepth))
 				if !isPtr { // not a Pointer
 					assignStmt := buildAssignStmt(dst.Name(), srcName)
@@ -247,7 +251,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
-				b.fieldPath.pop()
+				b.fieldPath.Pop()
 			} else {
 				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
 				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
@@ -604,6 +608,7 @@ func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTy
 		}
 		if srcField.Name() == dstField.Name() {
 			b.fieldPath.Push(fieldStep{name: srcField.Name(), structName: srcTypeString})
+			b.logger.Printf("push filed:%s type:%s", srcField.Name(), srcTypeString)
 			return srcField, true
 		}
 		if srcField.Embedded() {

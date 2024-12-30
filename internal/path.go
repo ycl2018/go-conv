@@ -16,7 +16,7 @@ func (p *path) Push(s fieldStep) {
 	*p = append(*p, s)
 }
 
-func (p *path) pop() {
+func (p *path) Pop() {
 	*p = (*p)[:len(*p)-1]
 }
 
@@ -27,22 +27,20 @@ func (p *path) matchIgnore(ignoreType IgnoreType, srcType types.Type) bool {
 			Paths: ignoreType.Paths,
 		}, srcType)
 	}
-	i, j := len(*p)-1, len(ignoreType.Fields)-1
-	if i < j {
+	i := len(*p) - 1
+	if i < 0 {
 		return false
-	}
-	for j >= 0 {
-		if (*p)[i].name != ignoreType.Fields[j] {
-			return false
-		}
-		j--
-		i--
 	}
 	// check type
-	if ignoreType.Tye != (*p)[i+1].structName {
+	if ignoreType.Tye != (*p)[i].structName {
 		return false
 	}
-	return true
+	for _, field := range ignoreType.Fields {
+		if (*p)[i].name == field {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *path) matchTransfer(transfer Transfer, dst *types.Var, src *types.Var) bool {
@@ -58,16 +56,20 @@ func (p *path) matchTransfer(transfer Transfer, dst *types.Var, src *types.Var) 
 		if i != j {
 			continue
 		}
+		var valid = true
 		for j >= 0 {
 			l := (*p)[i].name
 			r := ss[j]
 			if l != r {
-				return false
+				valid = false
+				break
 			}
 			j--
 			i--
 		}
-		return true
+		if valid {
+			return true
+		}
 	}
 	return false
 }

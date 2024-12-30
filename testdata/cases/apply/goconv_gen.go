@@ -10,7 +10,10 @@ import (
 func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 	if src != nil {
 		dst = new(b.Struct)
-		// apply ignore option on src.Student
+		dst.Student.Name = src.Student.Name
+		dst.Student.Class.Name = src.Student.Class.Name
+		dst.Student.Class.Grade = string(src.Student.Class.Grade)
+		dst.Student.Teachers = src.Student.Teachers
 		dst.Student2.Name = src.Student2.Name
 		dst.Student2.Class.Name = src.Student2.Class.Name
 		// apply transfer option on transfer
@@ -19,6 +22,7 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		filteredSrcStudent2Teachers := filter(src.Student2.Teachers)
 		dst.Student2.Teachers = filteredSrcStudent2Teachers
 		// apply ignore option on src.Student3
+		// apply ignore option on src.Pojo
 	}
 	return
 }

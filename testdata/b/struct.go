@@ -4,6 +4,12 @@ type Struct struct {
 	Student  Student
 	Student2 Student
 	Student3 Student
+	Pojo     *Pojo
+}
+
+type Pojo struct {
+	Int    int
+	String string
 }
 
 type Student struct {
