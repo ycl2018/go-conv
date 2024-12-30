@@ -59,6 +59,7 @@ const parserLoadMode = packages.NeedName | packages.NeedImports | packages.NeedD
 const GENFILENAME = "goconv_gen.go"
 
 func generate(patterns ...string) error {
+	DefaultLogger = NewLogger(os.Stdout, *verbose)
 
 	loadConf := &packages.Config{
 		Mode: parserLoadMode,
@@ -71,7 +72,6 @@ func generate(patterns ...string) error {
 	if err != nil {
 		return fmt.Errorf("[go-conv] loading packages err:\n%w", err)
 	}
-
 	varsToConv, err := ParseVarsToConv(pkgs)
 	if err != nil {
 		return err
@@ -80,8 +80,6 @@ func generate(patterns ...string) error {
 	if len(varsToConv) == 0 {
 		return fmt.Errorf("[go-conv] not find valid function to convert in path:%s", patterns)
 	}
-
-	DefaultLogger = NewLogger(os.Stdout, *verbose)
 
 	for p, vars := range varsToConv {
 		fileToGen := &ast.File{
