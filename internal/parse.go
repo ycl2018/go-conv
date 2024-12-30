@@ -86,6 +86,7 @@ const (
 	transformerOption  = "WithTransformer"
 	filterOption       = "WithFilter"
 	noInitOption       = "WithNoInitFunc"
+	fieldMatchOption   = "WithFieldMatch"
 )
 
 type CommentParser struct {
@@ -93,7 +94,7 @@ type CommentParser struct {
 }
 
 func (c CommentParser) Parse(astFile *ast.File, doc *ast.CommentGroup) (BuildConfig, error) {
-	var ret = DefaultBuildConfig
+	var ret = DefaultBuildConfig()
 	if doc == nil {
 		return ret, nil
 	}
@@ -168,7 +169,7 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 					Paths:  paths,
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v with paths:%v",
-					c.pkg.Fset.Position(elt.Pos()), structType, ignoreFields, paths)
+					c.pkg.Fset.Position(elt.Pos()), elemType, ignoreFields, paths)
 			case ignoreTypesOption:
 				var paths []string
 				if len(callExpr.Args) > 1 {
@@ -183,7 +184,7 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 					Paths: paths,
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s with paths:%v",
-					c.pkg.Fset.Position(elt.Pos()), ignoreType, paths)
+					c.pkg.Fset.Position(elt.Pos()), elemType, paths)
 			case transformerOption:
 				transferFuncName, ok := callExpr.Args[0].(*ast.Ident)
 				if !ok {
@@ -252,6 +253,30 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 				ret.NoInit = true
 				DefaultLogger.Printf("[go-conv] find comment on %s: config no generate init func",
 					c.pkg.Fset.Position(elt.Pos()))
+			case fieldMatchOption:
+				structType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
+				elemType, _, _ := dePointer(structType)
+				elemTypeStr := elemType.String()
+				cl, ok := callExpr.Args[1].(*ast.CompositeLit)
+				if !ok {
+					return fmt.Errorf("%s:type shoule be map[string]string literal",
+						c.pkg.Fset.Position(callExpr.Args[1].Pos()))
+				}
+				for _, expr := range cl.Elts {
+					kvExpr := expr.(*ast.KeyValueExpr)
+					k, ok1 := kvExpr.Key.(*ast.BasicLit)
+					v, ok2 := kvExpr.Value.(*ast.BasicLit)
+					if !ok1 || !ok2 {
+						return fmt.Errorf("%s:type shoule be map[string]string literal",
+							c.pkg.Fset.Position(kvExpr.Key.Pos()))
+					}
+					from, to := strings.Trim(k.Value, "\""), strings.Trim(v.Value, "\"")
+					ret.FieldMatcher.AddMatch(elemTypeStr, from, to)
+					DefaultLogger.Printf("[go-conv] find comment on %s: config type %s match field from %s "+
+						"to %s",
+						c.pkg.Fset.Position(elt.Pos()), elemTypeStr, from, to)
+				}
+
 			default:
 				panic("expect unreachable")
 			}

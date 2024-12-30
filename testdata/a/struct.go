@@ -5,6 +5,7 @@ type Struct struct {
 	Student2 Student
 	Student3 Student
 	Pojo     *Pojo
+	Match    string
 }
 
 type Pojo struct {

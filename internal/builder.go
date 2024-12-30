@@ -244,7 +244,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				continue
 			}
 			// match srcField
-			if srcField, ok := b.matchField(dstField, srcStructType, src.Type().String()); ok {
+			if srcField, ok := b.matchField(dstField, srcStructType, src.Type().String(), &stmts); ok {
 				dstVarName := dstName + "." + dstFieldName
 				srcVarName := srcName + "." + srcField.Name()
 				dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
@@ -599,21 +599,27 @@ func convPtrToStruct(v types.Type) (strut *types.Struct, isPtr, ok bool) {
 }
 
 // matchField find a matched Field in srcStruct with dstField
-func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTypeString string) (matched *types.Var, match bool) {
+func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTypeString string, stmts *[]ast.Stmt) (matched *types.Var, match bool) {
 	// by name
 	for i := range srcStruct.NumFields() {
 		srcField := srcStruct.Field(i)
 		if !srcField.Exported() {
 			continue
 		}
-		if srcField.Name() == dstField.Name() {
+		matchFromField := srcField.Name()
+		if setMatch, ok := b.buildConfig.FieldMatcher.HasMatch(srcTypeString, matchFromField); ok {
+			b.logger.Printf("apply %s match %s to %s", srcTypeString, srcField.Name(), setMatch)
+			*stmts = append(*stmts, buildCommentExpr("apply field match option"))
+			matchFromField = setMatch
+		}
+		if matchFromField == dstField.Name() {
 			b.fieldPath.Push(fieldStep{name: srcField.Name(), structName: srcTypeString})
 			b.logger.Printf("push filed:%s type:%s", srcField.Name(), srcTypeString)
 			return srcField, true
 		}
 		if srcField.Embedded() {
 			if embedStruct, ok := srcField.Type().Underlying().(*types.Struct); ok {
-				if v, ok := b.matchField(dstField, embedStruct, srcField.Type().String()); ok {
+				if v, ok := b.matchField(dstField, embedStruct, srcField.Type().String(), stmts); ok {
 					return v, true
 				}
 			}
@@ -639,7 +645,7 @@ func (b *Builder) Generate() ([]byte, error) {
 		initFunc := b.GenInit()
 		b.f.Decls = append(b.f.Decls, initFunc)
 	}
-	
+
 	// format
 	var buf bytes.Buffer
 	fileSet := token.NewFileSet()

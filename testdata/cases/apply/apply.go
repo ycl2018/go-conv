@@ -20,6 +20,9 @@ var basicConvOpts = []option.Option{
 	option.WithIgnoreTypes(a.Student{}, "Student3"),
 	option.WithTransformer(transfer, "Student2.Class.Grade"),
 	option.WithFilter(filter, "Student2.Teachers"),
+	option.WithFieldMatch(a.Struct{}, map[string]string{
+		"Match": "Match_",
+	}),
 }
 
 func transfer(t int) string {
