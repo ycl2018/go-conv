@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"fmt"
+	"encoding/json"
 	"go/ast"
 	"go/types"
 
@@ -48,7 +48,15 @@ type IgnoreType struct {
 }
 
 func (b BuildConfig) String() string {
-	return fmt.Sprintf("BuildConfig<BuildMode: %s>", b.BuildMode)
+	bytes, _ := json.MarshalIndent(b, "", "\t")
+	return string(bytes)
+}
+
+func (b BuildConfig) Clone() BuildConfig {
+	bytes, _ := json.Marshal(b)
+	var cloned BuildConfig
+	_ = json.Unmarshal(bytes, &cloned)
+	return cloned
 }
 
 func DefaultBuildConfig() BuildConfig {

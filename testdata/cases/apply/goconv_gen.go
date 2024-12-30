@@ -23,7 +23,6 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		dst.Student2.Teachers = filteredSrcStudent2Teachers
 		// apply ignore option on src.Student3
 		// apply ignore option on src.Pojo
-		// apply field match option
 		dst.Match_ = src.Match
 	}
 	return
