@@ -1,5 +1,9 @@
 # go-conv
 
+![Build Status](https://github.com/ycl2018/go-conv/actions/workflows/test.yml/badge.svg?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ycl2018/go-conv)](https://goreportcard.com/report/github.com/ycl2018/go-conv)
+
+
 根据函数类型声明自动生成转换函数
 
 # Feature
