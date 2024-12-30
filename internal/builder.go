@@ -148,7 +148,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		_, srcIsStruct := isStruct(elemType)
 		// check has generated func
 		if !b.rootNode && srcIsStruct && isPointerToStruct(dstType) {
-			funcName := b.GenFuncName(elemType, dst.Type(), b.buildConfig)
+			funcName := b.GenFuncName(types.NewPointer(elemType), dst.Type(), b.buildConfig)
 			convSrcName := func() string {
 				if !srcIsPtr {
 					return addressName(src.Name(), 1)
