@@ -39,6 +39,7 @@ type BuildConfig struct {
 	Transfer     []Transfer
 	Filter       []Filter
 	FieldMatcher *FieldMatcher
+	NoComment    bool
 }
 
 type IgnoreType struct {

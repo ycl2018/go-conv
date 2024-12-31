@@ -20,6 +20,7 @@ var (
 	dryRun  = flag.Bool("n", false, "dry run: show changes, but don't apply them")
 	verbose = flag.Bool("v", false, "verbose: enable verbose output log")
 	output  = flag.String("o", GENFILENAME, "output: generate code to fileName")
+	quiet   = flag.Bool("q", false, "quiet: no comment in generate code")
 )
 
 // seams for testing
@@ -90,6 +91,7 @@ func generate(patterns ...string) error {
 		builder := NewBuilder(fileToGen, p.Types)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
+			v.BuildConfig.NoComment = *quiet
 			fnName := builder.BuildFunc(dst.Type(), src.Type(), v.BuildConfig)
 			for _, name := range v.VarSpec.Names {
 				builder.AddInit(name.Name, fnName)
@@ -110,8 +112,11 @@ func generate(patterns ...string) error {
 func writeToFile(p *Package, genFileName string, content []byte) error {
 	fileName := filepath.Join(p.Dir, genFileName)
 	if *dryRun {
-		fmt.Fprintf(os.Stdout,
+		_, err := fmt.Fprintf(os.Stdout,
 			"\n************* %s *************\n\n%s", fileName, content)
+		if err != nil {
+			return fmt.Errorf("[go-conv] print to os.Stdout err:%w", err)
+		}
 	} else {
 		err := os.WriteFile(fileName, content, 0644)
 		if err != nil {

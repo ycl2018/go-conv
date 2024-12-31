@@ -49,15 +49,6 @@ func buildVarDecl(varName string, typeName string) *ast.DeclStmt {
 		}}
 }
 
-func buildCommentExpr(comment string) *ast.ExprStmt {
-	return &ast.ExprStmt{
-		X: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: "// " + comment,
-		},
-	}
-}
-
 var (
 	starPattern    = regexp.MustCompile(`\*(\w)`)
 	bracketPattern = regexp.MustCompile(`\[(\d+)](\w)`)
