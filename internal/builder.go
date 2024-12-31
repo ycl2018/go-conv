@@ -115,14 +115,15 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	for _, ignoreType := range b.buildConfig.Ignore {
 		if b.fieldPath.matchIgnore(ignoreType, src.Type()) {
 			b.logger.Printf("apply ignore on %s", src.Name())
-			return append(stmts, buildCommentExpr(fmt.Sprintf("apply ignore option on %s", src.Name())))
+			b.buildCommentExpr(&stmts, "apply ignore option on %s", src.Name())
+			return stmts
 		}
 	}
 	// transfer
 	for _, transfer := range b.buildConfig.Transfer {
 		if b.fieldPath.matchTransfer(transfer, dst, src) {
 			b.logger.Printf("apply transfer on %s", src.Name())
-			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply transfer option on %s", transfer.FuncName)))
+			b.buildCommentExpr(&stmts, "apply transfer option on %s", transfer.FuncName)
 			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", transfer.FuncName, src.Name()))
 			stmts = append(stmts, assignStmt)
 			return stmts
@@ -132,7 +133,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	for _, filter := range b.buildConfig.Filter {
 		if b.fieldPath.matchFilter(filter, src.Type()) {
 			b.logger.Printf("apply filter on %s", src.Name())
-			stmts = append(stmts, buildCommentExpr(fmt.Sprintf("apply filter option on %s", filter.FuncName)))
+			b.buildCommentExpr(&stmts, "apply filter option on %s", filter.FuncName)
 			newSrcName := "filtered" + cleanName(src.Name())
 			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
 			src = types.NewVar(0, b.types, newSrcName, src.Type())
@@ -170,7 +171,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		_, depth, _ := dePointer(dstType)
 		if depth != 1 {
 			b.logger.Printf("omit %s :only support one level pointer", dst.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			b.buildCommentExpr(&stmts, "omit "+dst.Name())
+			return stmts
 		}
 		dstName := ptrToName(dst.Name(), depth)
 		var srcName = src.Name()
@@ -223,7 +225,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		srcStructType, isPtr, ok := convPtrToStruct(src.Type())
 		if !ok {
 			b.logger.Printf("omit %s :%s type is not a struct/pointer to struct", dst.Name(), src.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			b.buildCommentExpr(&stmts, "omit "+dst.Name())
+			return stmts
 		}
 		if isPtr {
 			stmts = append(stmts, b.dePointerSrcStmt(dst, src, srcStructType)...)
@@ -256,7 +259,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				b.fieldPath.Pop()
 			} else {
 				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
-				stmts = append(stmts, buildCommentExpr("omit "+dstFieldName))
+				b.buildCommentExpr(&stmts, "omit "+dstFieldName)
+				return stmts
 			}
 		}
 		return stmts
@@ -265,7 +269,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		srcArrType, isSlice, ok := convSliceToArray(srcElemType)
 		if !ok || ptrDepth > 1 {
 			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			b.buildCommentExpr(&stmts, "omit "+dst.Name())
+			return stmts
 		}
 		if isPtr {
 			return b.dePointerSrcStmt(dst, src, srcElemType)
@@ -314,7 +319,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		srcType, ok := srcElemType.Underlying().(*types.Map)
 		if !ok || ptrDepth > 1 {
 			b.logger.Printf("omit %s :%s type is not a map", dst.Name(), src.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			b.buildCommentExpr(&stmts, "omit "+dst.Name())
+			return stmts
 		}
 		if isPtr {
 			return b.dePointerSrcStmt(dst, src, srcElemType)
@@ -388,7 +394,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 			}
 			b.logger.Printf("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
-			return append(stmts, buildCommentExpr("omit "+dst.Name()))
+			b.buildCommentExpr(&stmts, "omit "+dst.Name())
+			return stmts
 		}
 		if isPtr {
 			return b.dePointerSrcStmt(dst, src, srcElemType)
@@ -468,13 +475,24 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			return stmts
 		}
 		b.logger.Printf("omit %s :basic type can't cast from %s (or it pointers to)", dst.Name(), src.Name())
-		return append(stmts, buildCommentExpr("omit "+dst.Name()))
+		b.buildCommentExpr(&stmts, "omit "+dst.Name())
 	default:
 		b.logger.Printf("omit %s :type not support yet", dst.Name())
-		stmts = append(stmts, buildCommentExpr("omit "+dst.Name()))
+		b.buildCommentExpr(&stmts, "omit "+dst.Name())
 	}
 
 	return stmts
+}
+
+func (b *Builder) buildCommentExpr(stmts *[]ast.Stmt, format string, args ...any) {
+	if b.buildConfig.NoComment {
+		return
+	}
+	*stmts = append(*stmts, &ast.ExprStmt{
+		X: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "// " + fmt.Sprintf(format, args...),
+		}})
 }
 
 func (b *Builder) dePointerSrcStmt(dst *types.Var, src *types.Var, srcElemType types.Type) []ast.Stmt {
