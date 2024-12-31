@@ -15,8 +15,6 @@ func (f *FieldMatcher) AddMatch(structType, from, to string) {
 	}
 	if _, ok := match[from]; ok {
 		DefaultLogger.Printf("WARN: rematch %s's field:%s to %s", structType, from, to)
-	} else {
-		DefaultLogger.Printf("match %s's field:%s to %s", structType, from, to)
 	}
 	match[from] = to
 	f.Conf[structType] = match
