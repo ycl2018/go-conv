@@ -260,7 +260,6 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			} else {
 				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
 				b.buildCommentExpr(&stmts, "omit "+dstFieldName)
-				return stmts
 			}
 		}
 		return stmts
