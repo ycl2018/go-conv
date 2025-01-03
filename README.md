@@ -4,26 +4,23 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ycl2018/go-conv)](https://goreportcard.com/report/github.com/ycl2018/go-conv)
 
 
-根据函数类型声明自动生成转换函数
+根据函数类型声明自动生成转换代码，支持转换/深拷贝模式，支持应用扩展自定义转换函数/过滤/忽略特定字段等选项
 
 # Feature
 
-- [x] 自动处理同名包
-- [ ] 避免生成的函数和包内函数名冲突
-- [x] 支持embed struct自动解包
-- [x] 支持自定义基础类型自动强转
+- [x] 支持conv/deepCopy模式
+- [x] 支持范型
+- [x] 支持自动解指针
+- [x] 支持基础类型自动向上转型
+- [x] 支持基础类型自动强转
 - [x] 支持Alias类型自动转换
-- [x] 支持基础类型自动转型
+- [x] 支持embed field自动解包
+- [x] 支持自引用对象，支持递归转换
+- [x] 自动处理同名包冲突
 - [x] 支持string <-> []byte/[]rune 互转
-- [x] 支持自引用对象
 - [x] 支持Pointer <-> Struct 互转
 - [x] 支持Array <-> Slice 互转
-- [x] 支持conv/deepCopy模式
 - [x] 支持扩展自定义转换/过滤/忽略选项
-- [x] 支持自动解指针
-- [ ] 支持interface{}类型
-- [ ] 支持chan类型
-- [x] 支持范型
 
 # Example
 
