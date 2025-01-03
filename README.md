@@ -11,8 +11,8 @@
 - [x] 支持conv/deepCopy模式
 - [x] 支持范型
 - [x] 支持自动解指针
+- [x] 支持基础类型/map/slice/array/struct 转换
 - [x] 支持基础类型自动向上转型
-- [x] 支持基础类型自动强转
 - [x] 支持Alias类型自动转换
 - [x] 支持embed field自动解包
 - [x] 支持自引用对象，支持递归转换
