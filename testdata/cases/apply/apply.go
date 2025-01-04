@@ -23,6 +23,8 @@ var basicConvOpts = []option.Option{
 	option.WithFieldMatch(a.Struct{}, map[string]string{
 		"Match": "Match_",
 	}),
+	option.WithMatchCaseInsensitive(),
+	option.WithNoInitFunc(),
 }
 
 func transfer(t int) string {

@@ -88,13 +88,14 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 }
 
 const (
-	applyOptionsType   = "[]github.com/ycl2018/go-conv/option.Option"
-	ignoreFieldsOption = "WithIgnoreFields"
-	ignoreTypesOption  = "WithIgnoreTypes"
-	transformerOption  = "WithTransformer"
-	filterOption       = "WithFilter"
-	noInitOption       = "WithNoInitFunc"
-	fieldMatchOption   = "WithFieldMatch"
+	applyOptionsType           = "[]github.com/ycl2018/go-conv/option.Option"
+	ignoreFieldsOption         = "WithIgnoreFields"
+	ignoreTypesOption          = "WithIgnoreTypes"
+	transformerOption          = "WithTransformer"
+	filterOption               = "WithFilter"
+	noInitOption               = "WithNoInitFunc"
+	fieldMatchOption           = "WithFieldMatch"
+	fieldCaseInsensitiveOption = "WithMatchCaseInsensitive"
 )
 
 type CommentParser struct {
@@ -283,7 +284,10 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 						"to %s",
 						c.pkg.Fset.Position(elt.Pos()), elemTypeStr, from, to)
 				}
-
+			case fieldCaseInsensitiveOption:
+				ret.CaseInsensitive = true
+				DefaultLogger.Printf("[go-conv] find comment on %s: config field matched by case-insensitive",
+					c.pkg.Fset.Position(elt.Pos()))
 			default:
 				panic("expect unreachable")
 			}

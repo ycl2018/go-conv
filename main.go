@@ -17,7 +17,7 @@ import (
 
 // flags
 var (
-	dryRun  = flag.Bool("n", false, "dry run: show changes, but don't apply them")
+	dryRun  = flag.Bool("n", false, "dry run: show generate code,but not write to file")
 	verbose = flag.Bool("v", false, "verbose: enable verbose output log")
 	output  = flag.String("o", GENFILENAME, "output: generate code to fileName")
 	quiet   = flag.Bool("q", false, "quiet: no comment in generate code")
@@ -38,9 +38,10 @@ in the style of the go tool; see "go help packages".
 Hint: use "all" or "..." to match the entire workspace.
 
 Flags:
-  -n:	       dry run: show generate code, but don't write it to file
+  -n:	       dry run: show generate code,but not write to file
   -v:	       verbose: enable verbose output log
-  -o:	       output: generate code to fileName
+  -o:	       output:  generate code to fileName
+  -q:	       quiet:   no comment in generate code
 `
 
 func main() {

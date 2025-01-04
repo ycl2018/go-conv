@@ -630,7 +630,8 @@ func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTy
 		if setMatch, ok := b.buildConfig.FieldMatcher.HasMatch(srcTypeString, matchFromField); ok {
 			matchFromField = setMatch
 		}
-		if matchFromField == dstField.Name() {
+		if matchFromField == dstField.Name() || (b.buildConfig.CaseInsensitive &&
+			(strings.ToUpper(matchFromField) == strings.ToUpper(dstField.Name()))) {
 			b.fieldPath.Push(fieldStep{name: srcField.Name(), structName: srcTypeString})
 			return srcField, true
 		}

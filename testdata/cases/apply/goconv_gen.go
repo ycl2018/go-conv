@@ -20,9 +20,7 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		filteredSrcStudent2Teachers := filter(src.Student2.Teachers)
 		dst.Student2.Teachers = filteredSrcStudent2Teachers
 		dst.Match_ = src.Match
+		dst.Caseinsensitive = src.CaseInsensitive
 	}
 	return
-}
-func init() {
-	Struct2Struct = PtrAStructToPtrBStruct
 }
