@@ -1,11 +1,12 @@
 package b
 
 type Struct struct {
-	Student  Student
-	Student2 Student
-	Student3 Student
-	Pojo     *Pojo
-	Match_   string
+	Student         Student
+	Student2        Student
+	Student3        Student
+	Pojo            *Pojo
+	Match_          string
+	Caseinsensitive string
 }
 
 type Pojo struct {

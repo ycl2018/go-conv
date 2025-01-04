@@ -33,13 +33,14 @@ type Filter struct {
 }
 
 type BuildConfig struct {
-	BuildMode    BuildMode
-	NoInit       bool
-	Ignore       []IgnoreType
-	Transfer     []Transfer
-	Filter       []Filter
-	FieldMatcher *FieldMatcher
-	NoComment    bool
+	BuildMode       BuildMode
+	NoInit          bool
+	Ignore          []IgnoreType
+	Transfer        []Transfer
+	Filter          []Filter
+	FieldMatcher    *FieldMatcher
+	CaseInsensitive bool
+	NoComment       bool
 }
 
 type IgnoreType struct {

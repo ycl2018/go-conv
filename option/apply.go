@@ -38,3 +38,8 @@ func WithFieldMatch(structObj any, matchRule map[string]string) Option {
 func WithNoInitFunc() Option {
 	return Option{}
 }
+
+// WithMatchCaseInsensitive specify fields matched by name case-insensitive
+func WithMatchCaseInsensitive() Option {
+	return Option{}
+}
