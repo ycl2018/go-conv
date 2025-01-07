@@ -24,3 +24,12 @@ type Class struct {
 	Name  string
 	Grade string
 }
+
+type Foo struct {
+	Bar Bar
+}
+
+type Bar struct {
+	Field  string
+	Field2 int
+}

@@ -8,24 +8,34 @@ import (
 )
 
 func ACastFloat32ToPtrBCastInt(src a.Cast[float32]) (dst *b.Cast[int]) {
-	dst = new(b.Cast[int])
-	dst.Name = int(src.Name)
+	dst = PtrACastFloat32ToPtrBCastInt(&src)
 	return
 }
 func ACastFloat32ToPtrBCastPtrInt(src a.Cast[float32]) (dst *b.Cast[*int]) {
-	dst = new(b.Cast[*int])
-	dst.Name = new(int)
-	*dst.Name = int(src.Name)
+	dst = PtrACastFloat32ToPtrBCastPtrInt(&src)
 	return
 }
 func ACastSliceByteToPtrBCastString(src a.Cast[[]byte]) (dst *b.Cast[string]) {
-	dst = new(b.Cast[string])
-	dst.Name = string(src.Name)
+	dst = PtrACastSliceByteToPtrBCastString(&src)
 	return
 }
 func ACastSliceRuneToPtrBCastSliceRune(src a.Cast[[]rune]) (dst *b.Cast[[]rune]) {
-	dst = new(b.Cast[[]rune])
-	*dst = b.Cast[[]rune](src)
+	dst = PtrACastSliceRuneToPtrBCastSliceRune(&src)
+	return
+}
+func PtrACastFloat32ToPtrBCastInt(src *a.Cast[float32]) (dst *b.Cast[int]) {
+	if src != nil {
+		dst = new(b.Cast[int])
+		dst.Name = int(src.Name)
+	}
+	return
+}
+func PtrACastFloat32ToPtrBCastPtrInt(src *a.Cast[float32]) (dst *b.Cast[*int]) {
+	if src != nil {
+		dst = new(b.Cast[*int])
+		dst.Name = new(int)
+		*dst.Name = int(src.Name)
+	}
 	return
 }
 func PtrACastIntToPtrBCastFloat32(src *a.Cast[int]) (dst *b.Cast[float32]) {
@@ -40,6 +50,17 @@ func PtrACastIntToPtrBCastUint(src *a.Cast[int]) (dst *b.Cast[uint]) {
 		dst = new(b.Cast[uint])
 		dst.Name = uint(src.Name)
 	}
+	return
+}
+func PtrACastSliceByteToPtrBCastString(src *a.Cast[[]byte]) (dst *b.Cast[string]) {
+	if src != nil {
+		dst = new(b.Cast[string])
+		dst.Name = string(src.Name)
+	}
+	return
+}
+func PtrACastSliceRuneToPtrBCastSliceRune(src *a.Cast[[]rune]) (dst *b.Cast[[]rune]) {
+	dst = (*b.Cast[[]rune])(src)
 	return
 }
 func PtrACastStringToPtrBCastSliceByte(src *a.Cast[string]) (dst *b.Cast[[]byte]) {
