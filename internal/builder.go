@@ -37,7 +37,8 @@ type Builder struct {
 	types       *types.Package
 	importer    *Importer
 	genFunc     map[string]*ast.FuncDecl
-	rootNode    bool
+	curGenFunc  string
+	scope       *Scope
 	buildConfig BuildConfig
 	fieldPath   path
 	logger      *Logger
@@ -51,14 +52,23 @@ func NewBuilder(f *ast.File, types *types.Package) *Builder {
 		genFunc:         make(map[string]*ast.FuncDecl),
 		InitFuncBuilder: NewInitFuncBuilder(),
 		logger:          DefaultLogger,
+		scope:           NewScope("global", nil),
 	}
+}
+
+func (b *Builder) pushScope(scopeName string) {
+	b.scope = NewScope(scopeName, b.scope)
+}
+
+func (b *Builder) popScope() {
+	b.scope = b.scope.EnclosingScope
 }
 
 func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcName string) {
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
 	funcName = b.GenFuncName(src, dst, buildConfig)
 	b.logger.Printf("generate function:%s by %s", funcName, buildConfig)
-	b.rootNode = true
+	b.curGenFunc = funcName
 	b.buildConfig = buildConfig
 	// add a func
 	fn := &ast.FuncDecl{
@@ -82,9 +92,11 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 		Body: &ast.BlockStmt{},
 	}
 	b.genFunc[funcName] = fn
+	b.pushScope("func@" + funcName)
 	srcName, dstName := "src", "dst"
 	srcVar, dstVar := types.NewVar(0, b.types, srcName, src), types.NewVar(0, b.types, dstName, dst)
 	stmts := b.buildStmt(dstVar, srcVar)
+	b.popScope()
 	fn.Body.List = append(fn.Body.List, stmts...)
 	fn.Body.List = append(fn.Body.List, &ast.ExprStmt{X: ast.NewIdent("return")})
 	return funcName
@@ -107,9 +119,6 @@ func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 }
 
 func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
-	defer func() {
-		b.rootNode = false
-	}()
 	var stmts []ast.Stmt
 	// ignore
 	for _, ignoreType := range b.buildConfig.Ignore {
@@ -151,22 +160,30 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		elemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 		_, srcIsStruct := isStruct(elemType)
 		// check has generated func
-		if !b.rootNode && srcIsStruct && isPointerToStruct(dstType) {
+		if srcIsStruct && isPointerToStruct(dstType) {
 			funcName := b.GenFuncName(types.NewPointer(elemType), dst.Type(), b.buildConfig)
-			convSrcName := func() string {
-				if !srcIsPtr {
-					return addressName(src.Name(), 1)
-				} else {
-					ptrToName(src.Name(), ptrDepth-1)
+			if funcName != b.curGenFunc {
+				convSrcName := func() string {
+					if !srcIsPtr {
+						return addressName(src.Name(), 1)
+					} else {
+						ptrToName(src.Name(), ptrDepth-1)
+					}
+					return src.Name()
+				}()
+
+				assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
+				if _, ok := b.genFunc[funcName]; !ok {
+					curGenFunc := b.curGenFunc
+					scope := b.scope
+					b.scope = nil
+					b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
+					b.curGenFunc = curGenFunc
+					b.scope = scope
 				}
-				return src.Name()
-			}()
-			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
-			if _, ok := b.genFunc[funcName]; !ok {
-				b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
+				stmts = append(stmts, assignStmt)
+				return stmts
 			}
-			stmts = append(stmts, assignStmt)
-			return stmts
 		}
 		_, depth, _ := dePointer(dstType)
 		if depth != 1 {
@@ -276,19 +293,22 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		var srcName = src.Name()
 		// for i := 0; i<n ; i++ {}
+		b.pushScope("range@" + srcName)
+		symbol := b.scope.NextSymbol("i")
+		rangeIndex := symbol.Name
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("i")},
+				Lhs: []ast.Expr{ast.NewIdent(rangeIndex)},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{ast.NewIdent("0")},
 			},
 			Cond: &ast.BinaryExpr{
-				X:  ast.NewIdent("i"),
+				X:  ast.NewIdent(rangeIndex),
 				Op: token.LSS,
 				Y:  ast.NewIdent(strconv.FormatInt(dstType.Len(), 10)),
 			},
 			Post: &ast.IncDecStmt{
-				X:   ast.NewIdent("i"),
+				X:   ast.NewIdent(rangeIndex),
 				Tok: token.INC,
 			},
 			Body: &ast.BlockStmt{},
@@ -298,7 +318,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				X:  forStmt.Cond,
 				Op: token.LAND,
 				Y: &ast.BinaryExpr{
-					X:  ast.NewIdent("i"),
+					X:  ast.NewIdent(rangeIndex),
 					Op: token.LSS,
 					Y: &ast.CallExpr{
 						Fun:  ast.NewIdent("len"),
@@ -307,9 +327,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			}
 		}
-		dstElemVar := types.NewVar(0, b.types, parenthesesName(dst.Name())+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, srcName+"[i]", srcArrType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parenthesesName(
+			dst.Name())+fmt.Sprintf("[%s]", rangeIndex), dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types,
+			srcName+fmt.Sprintf("[%s]", rangeIndex), srcArrType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
+		b.popScope()
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		stmts = append(stmts, forStmt)
 		return stmts
@@ -326,10 +349,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		var srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
 		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
-		dstKeyVar := types.NewVar(0, b.types, "tmpK", dstType.Key())
-		dstValueVar := types.NewVar(0, b.types, "tmpV", dstType.Elem())
-		srcKeyVar := types.NewVar(0, b.types, "k", srcType.Key())
-		srcValueVar := types.NewVar(0, b.types, "v", srcType.Elem())
+		tmpK, tmpV := b.scope.NextPair("tmpK", "tmpV")
+		k, v := b.scope.NextPair("k", "v")
+		dstKeyVar := types.NewVar(0, b.types, tmpK.Name, dstType.Key())
+		dstValueVar := types.NewVar(0, b.types, tmpV.Name, dstType.Elem())
+		srcKeyVar := types.NewVar(0, b.types, k.Name, srcType.Key())
+		srcValueVar := types.NewVar(0, b.types, v.Name, srcType.Elem())
 
 		dstKeyTypeStr := b.importer.ImportType(dstKeyVar.Type())
 		dstValueTypeStr := b.importer.ImportType(dstValueVar.Type())
@@ -358,9 +383,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
 		// for k, v := range src
+		b.pushScope("range@" + srcName)
 		rangeStmt := &ast.RangeStmt{
-			Key:   ast.NewIdent("k"),
-			Value: ast.NewIdent("v"),
+			Key:   ast.NewIdent(k.Name),
+			Value: ast.NewIdent(v.Name),
 			Tok:   token.DEFINE,
 			X:     ast.NewIdent(srcName),
 			Body:  &ast.BlockStmt{},
@@ -372,6 +398,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		rangeStmt.Body.List = append(rangeStmt.Body.List, kDeclStmt, vDeclStmt)
 		assignKStmt := b.buildStmt(dstKeyVar, srcKeyVar)
 		assignVStmt := b.buildStmt(dstValueVar, srcValueVar)
+		b.popScope()
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignKStmt...)
 		rangeStmt.Body.List = append(rangeStmt.Body.List, assignVStmt...)
 		assignMapStmt := buildAssignStmt(fmt.Sprintf("%s[%s]", parenthesesName(dst.Name()), dstKeyVar.Name()), dstValueVar.Name())
@@ -423,14 +450,17 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 
 		// for i := 0; i<n ; i++ {}
+		b.pushScope("range@" + srcName)
+		symbol := b.scope.NextSymbol("i")
+		rangeIndex := symbol.Name
 		forStmt := &ast.ForStmt{
 			Init: &ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("i")},
+				Lhs: []ast.Expr{ast.NewIdent(rangeIndex)},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{ast.NewIdent("0")},
 			},
 			Cond: &ast.BinaryExpr{
-				X:  ast.NewIdent("i"),
+				X:  ast.NewIdent(rangeIndex),
 				Op: token.LSS,
 				Y: &ast.CallExpr{
 					Fun:  ast.NewIdent("len"),
@@ -438,14 +468,17 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			},
 			Post: &ast.IncDecStmt{
-				X:   ast.NewIdent("i"),
+				X:   ast.NewIdent(rangeIndex),
 				Tok: token.INC,
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.types, parenthesesName(dst.Name())+"[i]", dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, srcName+"[i]", srcSliceType.Elem())
+		dstElemVar := types.NewVar(0, b.types, parenthesesName(
+			dst.Name())+fmt.Sprintf("[%s]", rangeIndex), dstType.Elem())
+		srcElemVar := types.NewVar(0, b.types,
+			srcName+fmt.Sprintf("[%s]", rangeIndex), srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
+		b.popScope()
 		forStmt.Body.List = append(forStmt.Body.List, elementStmt...)
 		if !isArray {
 			ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")

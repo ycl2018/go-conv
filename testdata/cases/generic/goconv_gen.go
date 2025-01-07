@@ -57,8 +57,8 @@ func PtrAGenericStringSliceIntToPtrBGenericStringSliceInt64(src *a.Generic[strin
 			for i := 0; i < len(src.Slice); i++ {
 				if len(src.Slice[i]) > 0 {
 					dst.Slice[i] = make([]int64, len(src.Slice[i]))
-					for i := 0; i < len(src.Slice[i]); i++ {
-						dst.Slice[i][i] = int64(src.Slice[i][i])
+					for i1 := 0; i1 < len(src.Slice[i]); i1++ {
+						dst.Slice[i][i1] = int64(src.Slice[i][i1])
 					}
 				}
 			}
@@ -66,8 +66,8 @@ func PtrAGenericStringSliceIntToPtrBGenericStringSliceInt64(src *a.Generic[strin
 		for i := 0; i < 3; i++ {
 			if len(src.Array[i]) > 0 {
 				dst.Array[i] = make([]int64, len(src.Array[i]))
-				for i := 0; i < len(src.Array[i]); i++ {
-					dst.Array[i][i] = int64(src.Array[i][i])
+				for i1 := 0; i1 < len(src.Array[i]); i1++ {
+					dst.Array[i][i1] = int64(src.Array[i][i1])
 				}
 			}
 		}

@@ -12,7 +12,7 @@ func TestNewBuilder(t *testing.T) {
 	*verbose = true
 	*quiet = true
 	internal.DefaultLogger = internal.NewLogger(os.Stdout, *verbose)
-	err := generate("./testdata/cases/apply")
+	err := generate("./testdata/cases/...")
 	if err != nil {
 		t.Fatal(err)
 	}
