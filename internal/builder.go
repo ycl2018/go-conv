@@ -37,6 +37,7 @@ type Builder struct {
 	types       *types.Package
 	importer    *Importer
 	genFunc     map[string]*ast.FuncDecl
+	rootNode    bool
 	curGenFunc  string
 	scope       *Scope
 	buildConfig BuildConfig
@@ -58,10 +59,16 @@ func NewBuilder(f *ast.File, types *types.Package) *Builder {
 
 func (b *Builder) pushScope(scopeName string) {
 	b.scope = NewScope(scopeName, b.scope)
+	b.logger.Printf("push scope:%s", scopeName)
 }
 
 func (b *Builder) popScope() {
+	b.logger.Printf("pop scope:%s", b.scope.Name)
 	b.scope = b.scope.EnclosingScope
+}
+
+func (b *Builder) newVar(name string, tye types.Type) *types.Var {
+	return types.NewVar(0, b.types, name, tye)
 }
 
 func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcName string) {
@@ -69,6 +76,7 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 	funcName = b.GenFuncName(src, dst, buildConfig)
 	b.logger.Printf("generate function:%s by %s", funcName, buildConfig)
 	b.curGenFunc = funcName
+	b.rootNode = true
 	b.buildConfig = buildConfig
 	// add a func
 	fn := &ast.FuncDecl{
@@ -94,7 +102,7 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 	b.genFunc[funcName] = fn
 	b.pushScope("func@" + funcName)
 	srcName, dstName := "src", "dst"
-	srcVar, dstVar := types.NewVar(0, b.types, srcName, src), types.NewVar(0, b.types, dstName, dst)
+	srcVar, dstVar := b.newVar(srcName, src), b.newVar(dstName, dst)
 	stmts := b.buildStmt(dstVar, srcVar)
 	b.popScope()
 	fn.Body.List = append(fn.Body.List, stmts...)
@@ -120,6 +128,9 @@ func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 
 func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	var stmts []ast.Stmt
+	if _, ok := dst.Type().(*types.Pointer); !ok {
+		b.rootNode = false
+	}
 	// ignore
 	for _, ignoreType := range b.buildConfig.Ignore {
 		if b.fieldPath.matchIgnore(ignoreType, src.Type()) {
@@ -145,7 +156,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			b.buildCommentExpr(&stmts, "apply filter option on %s", filter.FuncName)
 			newSrcName := "filtered" + cleanName(src.Name())
 			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", filter.FuncName, src.Name()))
-			src = types.NewVar(0, b.types, newSrcName, src.Type())
+			src = b.newVar(newSrcName, src.Type())
 			stmts = append(stmts, assignStmt)
 		}
 	}
@@ -160,30 +171,28 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		elemType, ptrDepth, srcIsPtr := dePointer(src.Type())
 		_, srcIsStruct := isStruct(elemType)
 		// check has generated func
-		if srcIsStruct && isPointerToStruct(dstType) {
+		if !b.rootNode && srcIsStruct && isPointerToStruct(dstType) {
 			funcName := b.GenFuncName(types.NewPointer(elemType), dst.Type(), b.buildConfig)
-			if funcName != b.curGenFunc {
-				convSrcName := func() string {
-					if !srcIsPtr {
-						return addressName(src.Name(), 1)
-					} else {
-						ptrToName(src.Name(), ptrDepth-1)
-					}
-					return src.Name()
-				}()
-
-				assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
-				if _, ok := b.genFunc[funcName]; !ok {
-					curGenFunc := b.curGenFunc
-					scope := b.scope
-					b.scope = nil
-					b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
-					b.curGenFunc = curGenFunc
-					b.scope = scope
+			convSrcName := func() string {
+				if !srcIsPtr {
+					return addressName(src.Name(), 1)
+				} else {
+					ptrToName(src.Name(), ptrDepth-1)
 				}
-				stmts = append(stmts, assignStmt)
-				return stmts
+				return src.Name()
+			}()
+
+			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
+			if _, ok := b.genFunc[funcName]; !ok {
+				curGenFunc := b.curGenFunc
+				scope := b.scope
+				b.scope = nil
+				b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
+				b.curGenFunc = curGenFunc
+				b.scope = scope
 			}
+			stmts = append(stmts, assignStmt)
+			return stmts
 		}
 		_, depth, _ := dePointer(dstType)
 		if depth != 1 {
@@ -196,8 +205,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		if !srcIsStruct {
 			srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
 		}
-		dstElemVar := types.NewVar(0, b.types, dstName, dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types, srcName, elemType)
+		dstElemVar := b.newVar(dstName, dstType.Elem())
+		srcElemVar := b.newVar(srcName, elemType)
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		// dst = new(dst.Type)
 		initAssign := buildAssignStmt(dst.Name(), fmt.Sprintf("new(%s)", b.importer.ImportType(dstElemVar.Type())))
@@ -236,7 +245,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				}
 			}
 		}
-		dstUnderVar := types.NewVar(0, b.types, dst.Name(), dstUnderType)
+		dstUnderVar := b.newVar(dst.Name(), dstUnderType)
 		return b.buildStmt(dstUnderVar, src)
 	case *types.Struct:
 		srcStructType, isPtr, ok := convPtrToStruct(src.Type())
@@ -258,7 +267,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			}
 			dstFieldName := dstField.Name()
 			if dstField.Embedded() {
-				dstVar := types.NewVar(0, b.types, dstName+"."+dstFieldName, dstField.Type())
+				dstVar := b.newVar(dstName+"."+dstFieldName, dstField.Type())
 				fieldStmt := b.buildStmt(dstVar, src)
 				stmts = append(stmts, fieldStmt...)
 				continue
@@ -269,8 +278,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				srcVarName := srcName + "." + srcField.Name()
 				b.logger.Printf("try assign [%s -> %s]\ttype [%s -> %s]", srcVarName, dstVarName,
 					srcField.Type().String(), dstField.Type().String())
-				dstVar := types.NewVar(0, b.types, dstVarName, dstField.Type())
-				srcVar := types.NewVar(0, b.types, srcVarName, srcField.Type())
+				dstVar := b.newVar(dstVarName, dstField.Type())
+				srcVar := b.newVar(srcVarName, srcField.Type())
 				fieldStmt := b.buildStmt(dstVar, srcVar)
 				stmts = append(stmts, fieldStmt...)
 				b.fieldPath.Pop()
@@ -327,9 +336,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				},
 			}
 		}
-		dstElemVar := types.NewVar(0, b.types, parenthesesName(
+		dstElemVar := b.newVar(parenthesesName(
 			dst.Name())+fmt.Sprintf("[%s]", rangeIndex), dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types,
+		srcElemVar := b.newVar(
 			srcName+fmt.Sprintf("[%s]", rangeIndex), srcArrType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		b.popScope()
@@ -349,15 +358,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		var srcName = parenthesesName(ptrToName(src.Name(), ptrDepth))
 		ifStmt := buildIfStmt(fmt.Sprintf("len(%s)", srcName), token.GTR, "0")
-		tmpK, tmpV := b.scope.NextPair("tmpK", "tmpV")
-		k, v := b.scope.NextPair("k", "v")
-		dstKeyVar := types.NewVar(0, b.types, tmpK.Name, dstType.Key())
-		dstValueVar := types.NewVar(0, b.types, tmpV.Name, dstType.Elem())
-		srcKeyVar := types.NewVar(0, b.types, k.Name, srcType.Key())
-		srcValueVar := types.NewVar(0, b.types, v.Name, srcType.Elem())
 
-		dstKeyTypeStr := b.importer.ImportType(dstKeyVar.Type())
-		dstValueTypeStr := b.importer.ImportType(dstValueVar.Type())
+		dstKeyTypeStr := b.importer.ImportType(dstType.Key())
+		dstValueTypeStr := b.importer.ImportType(dstType.Elem())
 
 		mkStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{ast.NewIdent(dst.Name())},
@@ -384,6 +387,12 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		ifStmt.Body.List = append(ifStmt.Body.List, mkStmt)
 		// for k, v := range src
 		b.pushScope("range@" + srcName)
+		tmpK, tmpV := b.scope.NextPair("tmpK", "tmpV")
+		k, v := b.scope.NextPair("k", "v")
+		dstKeyVar := b.newVar(tmpK.Name, dstType.Key())
+		dstValueVar := b.newVar(tmpV.Name, dstType.Elem())
+		srcKeyVar := b.newVar(k.Name, srcType.Key())
+		srcValueVar := b.newVar(v.Name, srcType.Elem())
 		rangeStmt := &ast.RangeStmt{
 			Key:   ast.NewIdent(k.Name),
 			Value: ast.NewIdent(v.Name),
@@ -473,9 +482,9 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			},
 			Body: &ast.BlockStmt{},
 		}
-		dstElemVar := types.NewVar(0, b.types, parenthesesName(
+		dstElemVar := b.newVar(parenthesesName(
 			dst.Name())+fmt.Sprintf("[%s]", rangeIndex), dstType.Elem())
-		srcElemVar := types.NewVar(0, b.types,
+		srcElemVar := b.newVar(
 			srcName+fmt.Sprintf("[%s]", rangeIndex), srcSliceType.Elem())
 		elementStmt := b.buildStmt(dstElemVar, srcElemVar)
 		b.popScope()
@@ -540,7 +549,7 @@ func (b *Builder) dePointerSrcStmt(dst *types.Var, src *types.Var, srcElemType t
 	if needParentheses {
 		ptrToSrcName = parenthesesName(ptrToSrcName)
 	}
-	srcElemVar := types.NewVar(0, b.types, ptrToSrcName, srcElemType)
+	srcElemVar := b.newVar(ptrToSrcName, srcElemType)
 	elementStmt := b.buildStmt(dst, srcElemVar)
 	ifStmt.Body.List = append(ifStmt.Body.List, elementStmt...)
 	return []ast.Stmt{ifStmt}

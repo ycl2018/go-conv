@@ -9,7 +9,8 @@ import (
 )
 
 func ABasicToPtrBBasic(src a.Basic) (dst *b.Basic) {
-	dst = PtrABasicToPtrBBasic(&src)
+	dst = new(b.Basic)
+	*dst = b.Basic(src)
 	return
 }
 func CopyPtrABasicPtrToPtrBBasic(src *a.BasicPtr) (dst *b.Basic) {
