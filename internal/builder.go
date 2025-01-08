@@ -36,11 +36,11 @@ type Builder struct {
 	f           *ast.File
 	types       *types.Package
 	importer    *Importer
-	genFunc     map[string]*ast.FuncDecl
+	genFunc     map[string]*BuildFunc
 	rootNode    bool
 	curGenFunc  string
 	scope       *Scope
-	buildConfig BuildConfig
+	buildConfig BuildConfig // buildConfig differs from var to var
 	fieldPath   path
 	logger      *Logger
 }
@@ -50,7 +50,7 @@ func NewBuilder(f *ast.File, types *types.Package) *Builder {
 		f:               f,
 		types:           types,
 		importer:        NewImporter(types.Path()),
-		genFunc:         make(map[string]*ast.FuncDecl),
+		genFunc:         make(map[string]*BuildFunc),
 		InitFuncBuilder: NewInitFuncBuilder(),
 		logger:          DefaultLogger,
 		scope:           NewScope("global", nil),
@@ -99,12 +99,18 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 		},
 		Body: &ast.BlockStmt{},
 	}
-	b.genFunc[funcName] = fn
-	b.pushScope("func@" + funcName)
+	b.genFunc[funcName] = &BuildFunc{
+		GenFunc:     fn,
+		buildConfig: &buildConfig,
+	}
+	// funcScope's enclosing scope is global scope
+	funcScope := NewScope("func@"+funcName, nil)
+	prevScope := b.scope
+	b.scope = funcScope
 	srcName, dstName := "src", "dst"
 	srcVar, dstVar := b.newVar(srcName, src), b.newVar(dstName, dst)
 	stmts := b.buildStmt(dstVar, srcVar)
-	b.popScope()
+	b.scope = prevScope
 	fn.Body.List = append(fn.Body.List, stmts...)
 	fn.Body.List = append(fn.Body.List, &ast.ExprStmt{X: ast.NewIdent("return")})
 	return funcName
@@ -185,11 +191,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", funcName, convSrcName))
 			if _, ok := b.genFunc[funcName]; !ok {
 				curGenFunc := b.curGenFunc
-				scope := b.scope
-				b.scope = nil
 				b.BuildFunc(dst.Type(), types.NewPointer(elemType), b.buildConfig)
 				b.curGenFunc = curGenFunc
-				b.scope = scope
 			}
 			stmts = append(stmts, assignStmt)
 			return stmts
@@ -698,7 +701,7 @@ func (b *Builder) Generate() ([]byte, error) {
 	}
 	sort.Strings(funcNames)
 	for _, name := range funcNames {
-		b.f.Decls = append(b.f.Decls, b.genFunc[name])
+		b.f.Decls = append(b.f.Decls, b.genFunc[name].GenFunc)
 	}
 	// add init func
 	if !b.buildConfig.NoInit {
@@ -736,12 +739,22 @@ func (b *Builder) fillImport() {
 }
 
 func (b *Builder) GenFuncName(src, dst types.Type, buildConfig BuildConfig) string {
+	var funcName string
 	srcTypeName, dstTypeName := b.importer.ImportType(src), b.importer.ImportType(dst)
 	switch buildConfig.BuildMode {
-	case BuildModeConv:
-		// default
 	case BuildModeCopy:
-		return "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+		funcName = "Copy" + cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+	default:
+		funcName = cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
 	}
-	return cleanName(srcTypeName) + "To" + cleanName(dstTypeName)
+	for i := 0; ; i++ {
+		if i > 0 {
+			funcName = funcName + strconv.Itoa(i)
+		}
+		if gf, ok := b.genFunc[funcName]; !ok {
+			return funcName
+		} else if gf.buildConfig.String() == buildConfig.String() {
+			return funcName
+		}
+	}
 }
