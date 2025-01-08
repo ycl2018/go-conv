@@ -49,6 +49,11 @@ type IgnoreType struct {
 	Paths  []string
 }
 
+type BuildFunc struct {
+	GenFunc     *ast.FuncDecl
+	buildConfig *BuildConfig
+}
+
 func (b BuildConfig) String() string {
 	bytes, _ := json.MarshalIndent(b, "", "\t")
 	return string(bytes)
