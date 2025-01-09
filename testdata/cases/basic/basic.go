@@ -8,6 +8,7 @@ import (
 // go-conv:generate
 var (
 	BasicToBasic               func(*a.Basic) *b.Basic
+	BasicToBasic2              func(**a.Basic) *b.Basic
 	BasicToBasicPtr            func(a.Basic) *b.Basic
 	BasicPtrToBasic            func(*a.Basic) b.Basic
 	BasicToBasicPointer        func(*a.Basic) *b.BasicPtr

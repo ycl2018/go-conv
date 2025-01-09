@@ -46,4 +46,5 @@ type BasicPtr struct {
 	UnsafePointer *unsafe.Pointer
 	Byte          *byte
 	Rune          *rune
+	Ptr2          ***string
 }

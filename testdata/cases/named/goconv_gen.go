@@ -98,26 +98,66 @@ func CopyPtrAArrayNToPtrBSliceNPtr(src *a.ArrayN) (dst *b.SliceNPtr) {
 func CopyPtrABasicNamedPtrToPtrBBasicNamed(src *a.BasicNamedPtr) (dst *b.BasicNamed) {
 	if src != nil {
 		dst = new(b.BasicNamed)
-		dst.Bool = b.Bool(*src.Bool)
-		dst.Int = b.Int(*src.Int)
-		dst.Int8 = b.Int8(*src.Int8)
-		dst.Int16 = b.Int16(*src.Int16)
-		dst.Int32 = b.Int32(*src.Int32)
-		dst.Int64 = b.Int64(*src.Int64)
-		dst.Uint = b.Uint(*src.Uint)
-		dst.Uint8 = b.Uint8(*src.Uint8)
-		dst.Uint16 = b.Uint16(*src.Uint16)
-		dst.Uint32 = b.Uint32(*src.Uint32)
-		dst.Uint64 = b.Uint64(*src.Uint64)
-		dst.Uintptr = b.Uintptr(*src.Uintptr)
-		dst.Float32 = b.Float32(*src.Float32)
-		dst.Float64 = b.Float64(*src.Float64)
-		dst.Complex64 = b.Complex64(*src.Complex64)
-		dst.Complex128 = b.Complex128(*src.Complex128)
-		dst.String = b.String(*src.String)
-		dst.UnsafePointer = b.UnsafePointer(*src.UnsafePointer)
-		dst.Byte = b.Byte(*src.Byte)
-		dst.Rune = b.Rune(*src.Rune)
+		if src.Bool != nil {
+			dst.Bool = b.Bool(*src.Bool)
+		}
+		if src.Int != nil {
+			dst.Int = b.Int(*src.Int)
+		}
+		if src.Int8 != nil {
+			dst.Int8 = b.Int8(*src.Int8)
+		}
+		if src.Int16 != nil {
+			dst.Int16 = b.Int16(*src.Int16)
+		}
+		if src.Int32 != nil {
+			dst.Int32 = b.Int32(*src.Int32)
+		}
+		if src.Int64 != nil {
+			dst.Int64 = b.Int64(*src.Int64)
+		}
+		if src.Uint != nil {
+			dst.Uint = b.Uint(*src.Uint)
+		}
+		if src.Uint8 != nil {
+			dst.Uint8 = b.Uint8(*src.Uint8)
+		}
+		if src.Uint16 != nil {
+			dst.Uint16 = b.Uint16(*src.Uint16)
+		}
+		if src.Uint32 != nil {
+			dst.Uint32 = b.Uint32(*src.Uint32)
+		}
+		if src.Uint64 != nil {
+			dst.Uint64 = b.Uint64(*src.Uint64)
+		}
+		if src.Uintptr != nil {
+			dst.Uintptr = b.Uintptr(*src.Uintptr)
+		}
+		if src.Float32 != nil {
+			dst.Float32 = b.Float32(*src.Float32)
+		}
+		if src.Float64 != nil {
+			dst.Float64 = b.Float64(*src.Float64)
+		}
+		if src.Complex64 != nil {
+			dst.Complex64 = b.Complex64(*src.Complex64)
+		}
+		if src.Complex128 != nil {
+			dst.Complex128 = b.Complex128(*src.Complex128)
+		}
+		if src.String != nil {
+			dst.String = b.String(*src.String)
+		}
+		if src.UnsafePointer != nil {
+			dst.UnsafePointer = b.UnsafePointer(*src.UnsafePointer)
+		}
+		if src.Byte != nil {
+			dst.Byte = b.Byte(*src.Byte)
+		}
+		if src.Rune != nil {
+			dst.Rune = b.Rune(*src.Rune)
+		}
 	}
 	return
 }
@@ -126,83 +166,83 @@ func CopyPtrABasicNamedPtrToPtrBBasicNamedPtr(src *a.BasicNamedPtr) (dst *b.Basi
 		dst = new(b.BasicNamedPtr)
 		if src.Bool != nil {
 			dst.Bool = new(b.Bool)
-			*dst.Bool = b.Bool((*src.Bool))
+			*dst.Bool = b.Bool(*src.Bool)
 		}
 		if src.Int != nil {
 			dst.Int = new(b.Int)
-			*dst.Int = b.Int((*src.Int))
+			*dst.Int = b.Int(*src.Int)
 		}
 		if src.Int8 != nil {
 			dst.Int8 = new(b.Int8)
-			*dst.Int8 = b.Int8((*src.Int8))
+			*dst.Int8 = b.Int8(*src.Int8)
 		}
 		if src.Int16 != nil {
 			dst.Int16 = new(b.Int16)
-			*dst.Int16 = b.Int16((*src.Int16))
+			*dst.Int16 = b.Int16(*src.Int16)
 		}
 		if src.Int32 != nil {
 			dst.Int32 = new(b.Int32)
-			*dst.Int32 = b.Int32((*src.Int32))
+			*dst.Int32 = b.Int32(*src.Int32)
 		}
 		if src.Int64 != nil {
 			dst.Int64 = new(b.Int64)
-			*dst.Int64 = b.Int64((*src.Int64))
+			*dst.Int64 = b.Int64(*src.Int64)
 		}
 		if src.Uint != nil {
 			dst.Uint = new(b.Uint)
-			*dst.Uint = b.Uint((*src.Uint))
+			*dst.Uint = b.Uint(*src.Uint)
 		}
 		if src.Uint8 != nil {
 			dst.Uint8 = new(b.Uint8)
-			*dst.Uint8 = b.Uint8((*src.Uint8))
+			*dst.Uint8 = b.Uint8(*src.Uint8)
 		}
 		if src.Uint16 != nil {
 			dst.Uint16 = new(b.Uint16)
-			*dst.Uint16 = b.Uint16((*src.Uint16))
+			*dst.Uint16 = b.Uint16(*src.Uint16)
 		}
 		if src.Uint32 != nil {
 			dst.Uint32 = new(b.Uint32)
-			*dst.Uint32 = b.Uint32((*src.Uint32))
+			*dst.Uint32 = b.Uint32(*src.Uint32)
 		}
 		if src.Uint64 != nil {
 			dst.Uint64 = new(b.Uint64)
-			*dst.Uint64 = b.Uint64((*src.Uint64))
+			*dst.Uint64 = b.Uint64(*src.Uint64)
 		}
 		if src.Uintptr != nil {
 			dst.Uintptr = new(b.Uintptr)
-			*dst.Uintptr = b.Uintptr((*src.Uintptr))
+			*dst.Uintptr = b.Uintptr(*src.Uintptr)
 		}
 		if src.Float32 != nil {
 			dst.Float32 = new(b.Float32)
-			*dst.Float32 = b.Float32((*src.Float32))
+			*dst.Float32 = b.Float32(*src.Float32)
 		}
 		if src.Float64 != nil {
 			dst.Float64 = new(b.Float64)
-			*dst.Float64 = b.Float64((*src.Float64))
+			*dst.Float64 = b.Float64(*src.Float64)
 		}
 		if src.Complex64 != nil {
 			dst.Complex64 = new(b.Complex64)
-			*dst.Complex64 = b.Complex64((*src.Complex64))
+			*dst.Complex64 = b.Complex64(*src.Complex64)
 		}
 		if src.Complex128 != nil {
 			dst.Complex128 = new(b.Complex128)
-			*dst.Complex128 = b.Complex128((*src.Complex128))
+			*dst.Complex128 = b.Complex128(*src.Complex128)
 		}
 		if src.String != nil {
 			dst.String = new(b.String)
-			*dst.String = b.String((*src.String))
+			*dst.String = b.String(*src.String)
 		}
 		if src.UnsafePointer != nil {
 			dst.UnsafePointer = new(b.UnsafePointer)
-			*dst.UnsafePointer = b.UnsafePointer((*src.UnsafePointer))
+			*dst.UnsafePointer = b.UnsafePointer(*src.UnsafePointer)
 		}
 		if src.Byte != nil {
 			dst.Byte = new(b.Byte)
-			*dst.Byte = b.Byte((*src.Byte))
+			*dst.Byte = b.Byte(*src.Byte)
 		}
 		if src.Rune != nil {
 			dst.Rune = new(b.Rune)
-			*dst.Rune = b.Rune((*src.Rune))
+			*dst.Rune = b.Rune(*src.Rune)
 		}
 	}
 	return
@@ -449,7 +489,7 @@ func PtrAArrayNPtrToPtrBArrayN(src *a.ArrayNPtr) (dst *b.ArrayN) {
 	if src != nil {
 		dst = new(b.ArrayN)
 		if src.Name != nil {
-			dst.Name = [6]string((*src.Name))
+			dst.Name = b.NamedArray((*src.Name))
 		}
 	}
 	return
@@ -525,26 +565,64 @@ func PtrAArrayNToPtrBSliceNPtr(src *a.ArrayN) (dst *b.SliceNPtr) {
 func PtrABasicNamedPtrToPtrBBasicNamed(src *a.BasicNamedPtr) (dst *b.BasicNamed) {
 	if src != nil {
 		dst = new(b.BasicNamed)
-		dst.Bool = b.Bool(*src.Bool)
-		dst.Int = b.Int(*src.Int)
-		dst.Int8 = b.Int8(*src.Int8)
-		dst.Int16 = b.Int16(*src.Int16)
-		dst.Int32 = b.Int32(*src.Int32)
-		dst.Int64 = b.Int64(*src.Int64)
-		dst.Uint = b.Uint(*src.Uint)
-		dst.Uint8 = b.Uint8(*src.Uint8)
-		dst.Uint16 = b.Uint16(*src.Uint16)
-		dst.Uint32 = b.Uint32(*src.Uint32)
-		dst.Uint64 = b.Uint64(*src.Uint64)
-		dst.Uintptr = b.Uintptr(*src.Uintptr)
-		dst.Float32 = b.Float32(*src.Float32)
-		dst.Float64 = b.Float64(*src.Float64)
-		dst.Complex64 = b.Complex64(*src.Complex64)
-		dst.Complex128 = b.Complex128(*src.Complex128)
-		dst.String = b.String(*src.String)
+		if src.Bool != nil {
+			dst.Bool = b.Bool(*src.Bool)
+		}
+		if src.Int != nil {
+			dst.Int = b.Int(*src.Int)
+		}
+		if src.Int8 != nil {
+			dst.Int8 = b.Int8(*src.Int8)
+		}
+		if src.Int16 != nil {
+			dst.Int16 = b.Int16(*src.Int16)
+		}
+		if src.Int32 != nil {
+			dst.Int32 = b.Int32(*src.Int32)
+		}
+		if src.Int64 != nil {
+			dst.Int64 = b.Int64(*src.Int64)
+		}
+		if src.Uint != nil {
+			dst.Uint = b.Uint(*src.Uint)
+		}
+		if src.Uint8 != nil {
+			dst.Uint8 = b.Uint8(*src.Uint8)
+		}
+		if src.Uint16 != nil {
+			dst.Uint16 = b.Uint16(*src.Uint16)
+		}
+		if src.Uint32 != nil {
+			dst.Uint32 = b.Uint32(*src.Uint32)
+		}
+		if src.Uint64 != nil {
+			dst.Uint64 = b.Uint64(*src.Uint64)
+		}
+		if src.Uintptr != nil {
+			dst.Uintptr = b.Uintptr(*src.Uintptr)
+		}
+		if src.Float32 != nil {
+			dst.Float32 = b.Float32(*src.Float32)
+		}
+		if src.Float64 != nil {
+			dst.Float64 = b.Float64(*src.Float64)
+		}
+		if src.Complex64 != nil {
+			dst.Complex64 = b.Complex64(*src.Complex64)
+		}
+		if src.Complex128 != nil {
+			dst.Complex128 = b.Complex128(*src.Complex128)
+		}
+		if src.String != nil {
+			dst.String = b.String(*src.String)
+		}
 		dst.UnsafePointer = b.UnsafePointer(src.UnsafePointer)
-		dst.Byte = b.Byte(*src.Byte)
-		dst.Rune = b.Rune(*src.Rune)
+		if src.Byte != nil {
+			dst.Byte = b.Byte(*src.Byte)
+		}
+		if src.Rune != nil {
+			dst.Rune = b.Rune(*src.Rune)
+		}
 	}
 	return
 }
@@ -649,7 +727,7 @@ func PtrAMapNPtrToPtrBMapN(src *a.MapNPtr) (dst *b.MapN) {
 	if src != nil {
 		dst = new(b.MapN)
 		if src.Name != nil {
-			dst.Name = map[string]string((*src.Name))
+			dst.Name = b.NamedMap((*src.Name))
 		}
 	}
 	return
@@ -680,7 +758,7 @@ func PtrASliceNPtrToPtrBArrayN(src *a.SliceNPtr) (dst *b.ArrayN) {
 	if src != nil {
 		dst = new(b.ArrayN)
 		if src.Name != nil {
-			dst.Name = [6]string((*src.Name))
+			dst.Name = b.NamedArray((*src.Name))
 		}
 	}
 	return
@@ -689,8 +767,7 @@ func PtrASliceNPtrToPtrBArrayNPtr(src *a.SliceNPtr) (dst *b.ArrayNPtr) {
 	if src != nil {
 		dst = new(b.ArrayNPtr)
 		if src.Name != nil {
-			dst.Name = new(b.NamedArray)
-			*dst.Name = b.NamedArray((*src.Name))
+			dst.Name = (*b.NamedArray)((*src.Name))
 		}
 	}
 	return
@@ -699,7 +776,7 @@ func PtrASliceNPtrToPtrBSliceN(src *a.SliceNPtr) (dst *b.SliceN) {
 	if src != nil {
 		dst = new(b.SliceN)
 		if src.Name != nil {
-			dst.Name = []string((*src.Name))
+			dst.Name = b.NamedSlice((*src.Name))
 		}
 	}
 	return

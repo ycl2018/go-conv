@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"regexp"
@@ -50,30 +49,21 @@ func buildVarDecl(varName string, typeName string) *ast.DeclStmt {
 }
 
 var (
-	starPattern    = regexp.MustCompile(`\*(\w)`)
-	bracketPattern = regexp.MustCompile(`\[(\d+)](\w)`)
-	slicePattern   = regexp.MustCompile(`\[](\w)`)
+	starPattern    = regexp.MustCompile(`(Ptr)+(\w)`)
+	bracketPattern = regexp.MustCompile(`\[(\d+)]`)
+	slicePattern   = regexp.MustCompile(`(Slice)+(\w)`)
 )
 
 func cleanName(name string) string {
-	// 替换 * 为 Ptr 并将其后的第一个字母转为大写
-	name = starPattern.ReplaceAllStringFunc(name, func(s string) string {
-		return "Ptr" + strings.ToUpper(s[1:])
-	})
-
-	// 替换 [number] 为 Array 并将其后的第一个字母转为大写
+	name = strings.ReplaceAll(name, "*", "Ptr")
+	name = strings.ReplaceAll(name, "[]", "Slice")
+	// replace [number] with Array[number]
 	name = bracketPattern.ReplaceAllStringFunc(name, func(s string) string {
-		number := s[1 : len(s)-2] // 提取数字部分
-		nextChar := s[len(s)-1:]  // 提取下一个字符
-		return fmt.Sprintf("Array%s%s", number, strings.ToUpper(nextChar))
+		number := s[1 : len(s)-1]
+		return "Array" + number
 	})
 
-	// 替换 [] 为 Slice 并将其后的第一个字母转为大写
-	name = slicePattern.ReplaceAllStringFunc(name, func(s string) string {
-		return "Slice" + strings.ToUpper(s[len(s)-1:])
-	})
-
-	// 去除其他非字符和数字的符号，并处理特殊符号后面的字母转为大写
+	// replace non-letter characters
 	var result strings.Builder
 	var prevIsSpecial bool
 	var first = true
@@ -90,8 +80,15 @@ func cleanName(name string) string {
 			prevIsSpecial = true
 		}
 	}
-
-	// 构建结果字符串
 	output := result.String()
+	// replace ptr* to upper
+	output = starPattern.ReplaceAllStringFunc(output, func(s string) string {
+		return s[:len(s)-1] + strings.ToUpper(s[len(s)-1:])
+	})
+	// replace slice* to upper
+	output = slicePattern.ReplaceAllStringFunc(output, func(s string) string {
+		return s[:len(s)-1] + strings.ToUpper(s[len(s)-1:])
+	})
+
 	return output
 }

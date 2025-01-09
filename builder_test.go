@@ -10,7 +10,7 @@ import (
 func TestNewBuilder(t *testing.T) {
 	*dryRun = false
 	*verbose = true
-	*quiet = true
+	*quiet = false
 	internal.DefaultLogger = internal.NewLogger(os.Stdout, *verbose)
 	err := generate("./testdata/cases/...")
 	if err != nil {
