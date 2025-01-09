@@ -370,8 +370,7 @@ func PtrASlicePtrToPtrBArrayPtr(src *a.SlicePtr) (dst *b.ArrayPtr) {
 	if src != nil {
 		dst = new(b.ArrayPtr)
 		if src.Name != nil {
-			dst.Name = new([6]string)
-			*dst.Name = [6]string((*src.Name))
+			dst.Name = (*[6]string)((*src.Name))
 		}
 	}
 	return

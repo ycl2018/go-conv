@@ -29,7 +29,9 @@ func PtrANestedSliceToPtrBNestedSlice(src *a.NestedSlice) (dst *b.NestedSlice) {
 						if len(src.Slice[i][i1]) > 0 {
 							dst.Slice[i][i1] = make([]*b.Foo, len(src.Slice[i][i1]))
 							for i2 := 0; i2 < len(src.Slice[i][i1]); i2++ {
-								dst.Slice[i][i1][i2] = PtrAFooToPtrBFoo(src.Slice[i][i1][i2])
+								if src.Slice[i][i1][i2] != nil {
+									dst.Slice[i][i1][i2] = PtrAFooToPtrBFoo(src.Slice[i][i1][i2])
+								}
 							}
 						}
 					}
@@ -54,7 +56,9 @@ func PtrANestedSliceToPtrBNestedSlice(src *a.NestedSlice) (dst *b.NestedSlice) {
 								var tmpK2 int
 								var tmpV2 *b.Foo
 								tmpK2 = k2
-								tmpV2 = PtrAFooToPtrBFoo(v2)
+								if v2 != nil {
+									tmpV2 = PtrAFooToPtrBFoo(v2)
+								}
 								tmpV1[tmpK2] = tmpV2
 							}
 						}
@@ -71,7 +75,9 @@ func SlicePtrAFooToSlicePtrBFoo(src []*a.Foo) (dst []*b.Foo) {
 	if len(src) > 0 {
 		dst = make([]*b.Foo, len(src))
 		for i := 0; i < len(src); i++ {
-			dst[i] = PtrAFooToPtrBFoo(src[i])
+			if src[i] != nil {
+				dst[i] = PtrAFooToPtrBFoo(src[i])
+			}
 		}
 	}
 	return
