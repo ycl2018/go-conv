@@ -21,10 +21,6 @@ func (c *Scope) Define(name string, s *Symbol) {
 	s.scope = c
 }
 
-func (c *Scope) Remove(name string) {
-	delete(c.Symbols, name)
-}
-
 func (c *Scope) NextSymbol(prefix string) *Symbol {
 	for i := 0; ; i++ {
 		var name = prefix
