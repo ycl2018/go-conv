@@ -228,7 +228,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Struct:
 		srcStructType, ok := isStruct(src.Type())
 		if !ok {
-			b.logger.Printf("omit %s :%s type is not a struct/pointer to struct", dst.Name(), src.Name())
+			b.logger.Notice("omit %s :%s type is not a struct/pointer to struct", dst.Name(), src.Name())
 			b.buildCommentExpr(&stmts, "omit "+dst.Name())
 			return stmts
 		}
@@ -258,7 +258,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				stmts = append(stmts, fieldStmt...)
 				b.fieldPath.Pop()
 			} else {
-				b.logger.Printf("omit %s :not find match field in %s", dstFieldName, srcName)
+				b.logger.Notice("omit %s :not find match field in %s", dstFieldName, srcName)
 				b.buildCommentExpr(&stmts, "omit "+dstFieldName)
 			}
 		}
@@ -266,7 +266,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Array:
 		srcArrType, isSlice, ok := convSliceToArray(src.Type())
 		if !ok {
-			b.logger.Printf("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
+			b.logger.Notice("omit %s :%s type is not a array/slice", dst.Name(), src.Name())
 			b.buildCommentExpr(&stmts, "omit "+dst.Name())
 			return stmts
 		}
@@ -319,7 +319,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	case *types.Map:
 		srcType, ok := src.Type().Underlying().(*types.Map)
 		if !ok {
-			b.logger.Printf("omit %s :%s type is not a map", dst.Name(), src.Name())
+			b.logger.Notice("omit %s :%s type is not a map", dst.Name(), src.Name())
 			b.buildCommentExpr(&stmts, "omit "+dst.Name())
 			return stmts
 		}
@@ -394,7 +394,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 					return append(stmts, assignStmt)
 				}
 			}
-			b.logger.Printf("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
+			b.logger.Notice("omit %s :%s type is not a slice/array", dst.Name(), src.Name())
 			b.buildCommentExpr(&stmts, "omit "+dst.Name())
 			return stmts
 		}
@@ -466,10 +466,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		if ss, ok := b._shallowCopy(dst, src); ok {
 			return append(stmts, ss...)
 		}
-		b.logger.Printf("omit %s :basic type can't cast from %s (or it pointers to)", dst.Name(), src.Name())
+		b.logger.Notice("omit %s :basic type can't cast from %s (or it pointers to)", dst.Name(), src.Name())
 		b.buildCommentExpr(&stmts, "omit "+dst.Name())
 	default:
-		b.logger.Printf("omit %s :type not support yet", dst.Name())
+		b.logger.Notice("omit %s :type not support yet", dst.Name())
 		b.buildCommentExpr(&stmts, "omit "+dst.Name())
 	}
 
