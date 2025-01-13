@@ -17,7 +17,8 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		dst.Student2.Name = src.Student2.Name
 		dst.Student2.Class.Name = src.Student2.Class.Name
 		// apply transfer option on transfer
-		dst.Student2.Class.Grade = transfer(src.Student2.Class.Grade)
+		transferredSrcStudent2ClassGrade := transfer(src.Student2.Class.Grade)
+		dst.Student2.Class.Grade = transferredSrcStudent2ClassGrade
 		// apply filter option on filter
 		filteredSrcStudent2Teachers := filter(src.Student2.Teachers)
 		dst.Student2.Teachers = filteredSrcStudent2Teachers
