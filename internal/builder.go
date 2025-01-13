@@ -157,9 +157,10 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		if b.fieldPath.matchTransfer(transfer, dst, src) {
 			b.logger.Printf("apply transfer on %s", src.Name())
 			b.buildCommentExpr(&stmts, "apply transfer option on %s", transfer.FuncName)
-			assignStmt := buildAssignStmt(dst.Name(), fmt.Sprintf("%s(%s)", transfer.FuncName, src.Name()))
+			newSrcName := "transferred" + cleanName(src.Name())
+			assignStmt := buildDefineStmt(newSrcName, fmt.Sprintf("%s(%s)", transfer.FuncName, src.Name()))
+			src = b.newVar(newSrcName, dst.Type())
 			stmts = append(stmts, assignStmt)
-			return stmts
 		}
 	}
 	// filter
