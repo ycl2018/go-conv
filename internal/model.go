@@ -43,10 +43,18 @@ type BuildConfig struct {
 	NoComment       bool
 }
 
+type Side int
+
+const (
+	SideSrc Side = iota
+	SideDst
+)
+
 type IgnoreType struct {
-	Tye    string
-	Fields []string
-	Paths  []string
+	Tye        string
+	Fields     []string
+	Paths      []string
+	IgnoreSide Side
 }
 
 type BuildFunc struct {
