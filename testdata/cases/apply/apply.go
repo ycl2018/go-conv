@@ -17,7 +17,9 @@ var (
 
 var basicConvOpts = []option.Option{
 	option.WithIgnoreFields(a.Struct{}, []string{"Pojo"}),
+	option.WithIgnoreDstFields(b.Struct{}, []string{"IgnoreField"}),
 	option.WithIgnoreTypes(a.Student{}, "Student3"),
+	option.WithIgnoreDstTypes(b.Pojo{}, "IgnoreType"),
 	option.WithTransformer(transfer, "Student2.Class.Grade"),
 	option.WithFilter(filter, "Student2.Teachers"),
 	option.WithFieldMatch(a.Struct{}, map[string]string{

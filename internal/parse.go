@@ -90,7 +90,9 @@ func ParseVarsToConv(pkgs []*packages.Package) (map[*Package][]*ConvVar, error) 
 const (
 	applyOptionsType           = "[]github.com/ycl2018/go-conv/option.Option"
 	ignoreFieldsOption         = "WithIgnoreFields"
+	ignoreDstFieldsOption      = "WithIgnoreDstFields"
 	ignoreTypesOption          = "WithIgnoreTypes"
+	ignoreDstTypesOption       = "WithIgnoreDstTypes"
 	transformerOption          = "WithTransformer"
 	filterOption               = "WithFilter"
 	noInitOption               = "WithNoInitFunc"
@@ -155,7 +157,7 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 			}
 			optionFn := callExpr.Fun.(*ast.SelectorExpr).Sel.Name
 			switch optionFn {
-			case ignoreFieldsOption:
+			case ignoreFieldsOption, ignoreDstFieldsOption:
 				var ignoreFields []string
 				ast.Inspect(callExpr.Args[1], func(n ast.Node) bool {
 					if basicLit, ok := n.(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
@@ -171,14 +173,19 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 				}
 				structType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
 				elemType, _, _ := dePointer(structType)
+				side := SideSrc
+				if optionFn == ignoreDstFieldsOption {
+					side = SideDst
+				}
 				ret.Ignore = append(ret.Ignore, IgnoreType{
-					Tye:    elemType.String(),
-					Fields: ignoreFields,
-					Paths:  paths,
+					Tye:        elemType.String(),
+					Fields:     ignoreFields,
+					Paths:      paths,
+					IgnoreSide: side,
 				})
 				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore %s fields: %v with paths:%v",
 					c.pkg.Fset.Position(elt.Pos()), elemType, ignoreFields, paths)
-			case ignoreTypesOption:
+			case ignoreTypesOption, ignoreDstTypesOption:
 				var paths []string
 				if len(callExpr.Args) > 1 {
 					for i := 1; i < len(callExpr.Args); i++ {
@@ -187,12 +194,17 @@ func (c CommentParser) parseApply(astFile *ast.File, comment *ast.Comment, ret *
 				}
 				ignoreType := c.pkg.TypesInfo.TypeOf(callExpr.Args[0])
 				elemType, _, _ := dePointer(ignoreType)
+				side := SideSrc
+				if optionFn == ignoreDstTypesOption {
+					side = SideDst
+				}
 				ret.Ignore = append(ret.Ignore, IgnoreType{
-					Tye:   elemType.String(),
-					Paths: paths,
+					Tye:        elemType.String(),
+					Paths:      paths,
+					IgnoreSide: side,
 				})
-				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s with paths:%v",
-					c.pkg.Fset.Position(elt.Pos()), elemType, paths)
+				DefaultLogger.Printf("[go-conv] find comment on %s: config ignore type:%s with paths:%v on %d side",
+					c.pkg.Fset.Position(elt.Pos()), elemType, paths, side)
 			case transformerOption:
 				transferFuncName, ok := callExpr.Args[0].(*ast.Ident)
 				if !ok {

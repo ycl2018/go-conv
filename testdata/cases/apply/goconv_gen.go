@@ -26,6 +26,9 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		// apply ignore option on src.Pojo
 		dst.Match_ = src.Match
 		dst.Caseinsensitive = src.CaseInsensitive
+		// apply ignore option on dst.IgnoreType
+		// apply ignore option on dst.IgnoreField
+		dst.Struct = src.Struct
 	}
 	return
 }

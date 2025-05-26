@@ -3,15 +3,27 @@ package option
 // Option convert option
 type Option struct{}
 
-// WithIgnoreFields specify fields of struct to ignore in convert.
+// WithIgnoreFields specify fields of src struct to ignore in convert.
 // if path are set, filter only apply to specified path.
 func WithIgnoreFields(structObj any, fields []string, path ...string) Option {
 	return Option{}
 }
 
-// WithIgnoreTypes specify types to ignore in convert.
+// WithIgnoreDstFields specify fields of dst struct to ignore in convert.
+// if path are set, filter only apply to specified path.
+func WithIgnoreDstFields(structObj any, fields []string, path ...string) Option {
+	return Option{}
+}
+
+// WithIgnoreTypes specify types which in src struct to ignore in convert.
 // if path are set, filter only apply to specified path.
 func WithIgnoreTypes(obj any, path ...string) Option {
+	return Option{}
+}
+
+// WithIgnoreDstTypes specify types which in dst struct to ignore in convert.
+// if path are set, filter only apply to specified path.
+func WithIgnoreDstTypes(obj any, path ...string) Option {
 	return Option{}
 }
 

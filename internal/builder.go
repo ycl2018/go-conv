@@ -42,18 +42,20 @@ type Builder struct {
 	scope       *Scope
 	buildConfig BuildConfig // buildConfig differs from var to var
 	fieldPath   path
+	varToNamed  map[*types.Var]*types.Named
 	logger      *Logger
 }
 
-func NewBuilder(f *ast.File, types *types.Package) *Builder {
+func NewBuilder(f *ast.File, pkg *types.Package) *Builder {
 	return &Builder{
 		f:               f,
-		types:           types,
-		importer:        NewImporter(types.Path()),
+		types:           pkg,
+		importer:        NewImporter(pkg.Path()),
 		genFunc:         make(map[string]*BuildFunc),
 		InitFuncBuilder: NewInitFuncBuilder(),
 		logger:          DefaultLogger,
 		scope:           NewScope("global", nil),
+		varToNamed:      make(map[*types.Var]*types.Named),
 	}
 }
 
@@ -121,7 +123,7 @@ func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	elemType, _, _ := dePointer(src.Type())
 	for _, ignoreType := range b.buildConfig.Ignore {
 		if len(ignoreType.Fields) > 0 &&
-			b.fieldPath.matchIgnore(IgnoreType{Tye: ignoreType.Tye, Paths: ignoreType.Paths}, elemType) {
+			b.fieldPath.matchIgnore(IgnoreType{Tye: ignoreType.Tye, Paths: ignoreType.Paths}, elemType, dst.Type()) {
 			return nil, false
 		}
 	} // dst is pointer
@@ -146,7 +148,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	}
 	// ignore
 	for _, ignoreType := range b.buildConfig.Ignore {
-		if b.fieldPath.matchIgnore(ignoreType, src.Type()) {
+		if b.fieldPath.matchIgnore(ignoreType, src.Type(), dst.Type()) {
 			b.logger.Printf("apply ignore on %s", src.Name())
 			b.buildCommentExpr(&stmts, "apply ignore option on %s", src.Name())
 			return stmts
@@ -165,7 +167,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	}
 	// filter
 	for _, filter := range b.buildConfig.Filter {
-		if b.fieldPath.matchFilter(filter, src.Type()) {
+		if b.fieldPath.matchFilter(filter, src.Type(), SideSrc) {
 			b.logger.Printf("apply filter on %s", src.Name())
 			b.buildCommentExpr(&stmts, "apply filter option on %s", filter.FuncName)
 			newSrcName := "filtered" + cleanName(src.Name())
@@ -224,6 +226,7 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			}
 		}
 		dstUnderVar := b.newVar(dst.Name(), dstUnderType)
+		b.varToNamed[dstUnderVar] = dstType
 		return b.buildStmt(dstUnderVar, src)
 	case *types.Struct:
 		srcStructType, ok := isStruct(src.Type())
@@ -234,6 +237,13 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		}
 		srcName := strings.TrimPrefix(src.Name(), "*")
 		dstName := strings.TrimPrefix(dst.Name(), "*") // for struct type, compiler can de Pointer automatically
+		var dstStructName string
+		if fromNamed, has := b.varToNamed[dst]; has {
+			dstStructName = fromNamed.String()
+		} else {
+			dstStructName = dstType.String()
+		}
+	OUTER:
 		for i := range dstType.NumFields() {
 			dstField := dstType.Field(i)
 			if !dstField.Exported() {
@@ -246,12 +256,40 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 				stmts = append(stmts, fieldStmt...)
 				continue
 			}
+			// check ignore
+			b.fieldPath.Push(fieldStep{
+				dst: field{
+					name:       dstFieldName,
+					structName: dstStructName,
+				},
+			})
+			for _, ignoreType := range b.buildConfig.Ignore {
+				if ignoreType.IgnoreSide == SideSrc {
+					continue
+				}
+				if b.fieldPath.matchIgnore(ignoreType, nil, dstField.Type()) {
+					b.logger.Printf("apply ignore on dst %s", src.Name())
+					b.buildCommentExpr(&stmts, "apply ignore option on %s", dstName+"."+dstFieldName)
+					continue OUTER
+				}
+			}
 			// match srcField
+			b.fieldPath.Pop()
 			if srcField, ok := b.matchField(dstField, srcStructType, src.Type().String()); ok {
 				dstVarName := dstName + "." + dstFieldName
 				srcVarName := srcName + "." + srcField.Name()
-				b.logger.Printf("assign [%s -> %s]\n\ttype [%s -> %s]", srcVarName, dstVarName,
+				b.logger.Printf("assign [%s(%s) -> %s(%s)]", srcVarName, dstVarName,
 					srcField.Type().String(), dstField.Type().String())
+				b.fieldPath.Push(fieldStep{
+					src: field{
+						name:       srcField.Name(),
+						structName: src.Type().String(),
+					},
+					dst: field{
+						name:       dstField.Name(),
+						structName: dstStructName,
+					},
+				})
 				dstVar := b.newVar(dstVarName, dstField.Type())
 				srcVar := b.newVar(srcVarName, srcField.Type())
 				fieldStmt := b.buildStmt(dstVar, srcVar)
@@ -610,7 +648,6 @@ func (b *Builder) matchField(dstField *types.Var, srcStruct *types.Struct, srcTy
 		}
 		if matchFromField == dstField.Name() || (b.buildConfig.CaseInsensitive &&
 			(strings.ToUpper(matchFromField) == strings.ToUpper(dstField.Name()))) {
-			b.fieldPath.Push(fieldStep{name: srcField.Name(), structName: srcTypeString})
 			return srcField, true
 		}
 		if srcField.Embedded() {

@@ -7,6 +7,13 @@ type Struct struct {
 	Pojo            *Pojo
 	Match_          string
 	Caseinsensitive string
+	IgnoreType      *Pojo
+	IgnoreField     string
+	Struct          struct {
+		Foo struct {
+			Bar string
+		}
+	}
 }
 
 type Pojo struct {
