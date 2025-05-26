@@ -171,12 +171,15 @@ import (
 // Struct2Struct conv a Basic to b Basic
 // go-conv:generate
 // go-conv:apply basicConvOpts
-var Struct2Struct func(p *a.Struct) *b.Struct
-
+var (
+	Struct2Struct func(p *a.Struct) *b.Struct
+)
 
 var basicConvOpts = []option.Option{
 	option.WithIgnoreFields(a.Struct{}, []string{"Pojo"}),
+	option.WithIgnoreDstFields(b.Struct{}, []string{"IgnoreField"}),
 	option.WithIgnoreTypes(a.Student{}, "Student3"),
+	option.WithIgnoreDstTypes(b.Pojo{}, "IgnoreType"),
 	option.WithTransformer(transfer, "Student2.Class.Grade"),
 	option.WithFilter(filter, "Student2.Teachers"),
 	option.WithFieldMatch(a.Struct{}, map[string]string{
@@ -193,6 +196,7 @@ func transfer(t int) string {
 func filter(arr []string) []string {
 	return arr
 }
+
 ```
 
 ```go
@@ -224,9 +228,13 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		// apply ignore option on src.Pojo
 		dst.Match_ = src.Match
 		dst.Caseinsensitive = src.CaseInsensitive
+		// apply ignore option on dst.IgnoreType
+		// apply ignore option on dst.IgnoreField
+		dst.Struct = src.Struct
 	}
 	return
 }
+
 ```
 
 ## 更多使用实例请参考 testdata 目录
