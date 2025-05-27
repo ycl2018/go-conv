@@ -35,7 +35,7 @@ Automatically generate conversion code based on function type declarations, supp
 
 Generation command:
 
-`go run github.com/ycl2018/go-conv@latest./...`
+`go run github.com/ycl2018/go-conv@latest ./...`
 
 ## conv mode
 
