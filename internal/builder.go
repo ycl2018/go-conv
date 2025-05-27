@@ -278,8 +278,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 			if srcField, ok := b.matchField(dstField, srcStructType, src.Type().String()); ok {
 				dstVarName := dstName + "." + dstFieldName
 				srcVarName := srcName + "." + srcField.Name()
-				b.logger.Printf("assign [%s(%s) -> %s(%s)]", srcVarName, dstVarName,
-					srcField.Type().String(), dstField.Type().String())
+				b.logger.Printf("assign [%s(%s) -> %s(%s)]", srcVarName, srcField.Type().String(),
+					dstVarName, dstField.Type().String())
 				b.fieldPath.Push(fieldStep{
 					src: field{
 						name:       srcField.Name(),
