@@ -67,6 +67,9 @@ func generate(patterns ...string) error {
 
 	loadConf := &packages.Config{
 		Mode: parserLoadMode,
+		BuildFlags: []string{
+			"-tags=goconv_gen",
+		},
 		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 			return parser.ParseFile(fset, filename, src, parser.SkipObjectResolution|parser.ParseComments)
 		},
