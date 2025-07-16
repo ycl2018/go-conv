@@ -120,20 +120,33 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	var stmts []ast.Stmt
-	elemType, _, _ := dePointer(src.Type())
-	for _, ignoreType := range b.buildConfig.Ignore {
-		if len(ignoreType.Fields) > 0 &&
-			b.fieldPath.matchIgnore(IgnoreType{Tye: ignoreType.Tye, Paths: ignoreType.Paths}, elemType, dst.Type()) {
-			return nil, false
+	// struct can convert to struct directly
+	// we need check if the struct has match ignore fields
+	checkIgnore := func() (matched bool) {
+		elemType, _, _ := dePointer(src.Type())
+		_, ok := isStruct(elemType)
+		if !ok {
+			return false
 		}
-	} // dst is pointer
+		for _, ignoreType := range b.buildConfig.Ignore {
+			if len(ignoreType.Fields) > 0 &&
+				b.fieldPath.matchIgnore(IgnoreType{
+					Tye:        ignoreType.Tye,
+					Paths:      ignoreType.Paths,
+					IgnoreSide: ignoreType.IgnoreSide,
+				}, elemType, dst.Type()) {
+				return true
+			}
+		}
+		return false
+	}
 	// exactly same type
-	if src.Type().String() == dst.Type().String() {
+	if src.Type().String() == dst.Type().String() && !checkIgnore() {
 		var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 		stmts = append(stmts, assignmentStmt)
 		return stmts, true
 	}
-	if types.ConvertibleTo(src.Type(), dst.Type()) {
+	if types.ConvertibleTo(src.Type(), dst.Type()) && !checkIgnore() {
 		convertName := fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), src.Name())
 		assignStmt := buildAssignStmt(dst.Name(), convertName)
 		return append(stmts, assignStmt), true
