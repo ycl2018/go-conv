@@ -242,20 +242,20 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 
 支持使用flag参数 `-strconv` 来自动转换string <-> integer类型
 
-NOTE：
-string -> integer: by strconv.ParseInt(src,10,64)
+NOTE：  
+string -> integer: by strconv.ParseInt(src,10,64)  
 integer -> string: by strconv.Itoa
 
 ```go
-		// string <-> integer
-		tmpInt, _ := strconv.ParseInt(src.StringInt, 10, 64)
-		dst.StringInt = int(tmpInt)
-		tmpInt1, _ := strconv.ParseInt(src.StringInt2, 10, 64)
-		dst.StringInt2 = int16(tmpInt1)
-		tmpInt2, _ := strconv.ParseInt(src.StringInt3, 10, 64)
-		dst.StringInt3 = int32(tmpInt2)
+        // string -> integer
+        tmpInt, _ := strconv.ParseInt(src.StringInt, 10, 64)
+        dst.StringInt = int(tmpInt)
+        tmpInt1, _ := strconv.ParseInt(src.StringInt2, 10, 64)
+        dst.StringInt2 = int16(tmpInt1)
+        tmpInt2, _ := strconv.ParseInt(src.StringInt3, 10, 64)
+        dst.StringInt3 = int32(tmpInt2)
 		
-		// integer -> string
+        // integer -> string
         tmpStr := strconv.Itoa(int(src.StringInt))
         dst.StringInt = tmpStr
         tmpStr1 := strconv.Itoa(int(src.StringInt2))
