@@ -96,6 +96,26 @@ func (i *Importer) ImportType(t types.Type) string {
 	return name
 }
 
+// ImportRawPkg import pkg by pkgPath and pkgName
+func (i *Importer) ImportRawPkg(pkgPath, pkgName string) string {
+	pkgImportName, ok := i.pkgToName[pkgPath]
+	if ok {
+		return pkgImportName
+	}
+	pkgImportName = pkgName
+	// import pkg name
+	if num, ok := i.importedPkgName[pkgImportName]; ok {
+		next := num + 1
+		i.importedPkgName[pkgImportName] = next
+		pkgImportName = pkgImportName + strconv.Itoa(next)
+	} else {
+		i.importedPkgName[pkgImportName] = 1
+	}
+	i.pkgToName[pkgPath] = pkgImportName
+	i.imported = append(i.imported, types.NewPackage(pkgPath, pkgName))
+	return pkgImportName
+}
+
 func (i *Importer) GenImportDecl() []ast.Decl {
 	var importDecls []ast.Decl
 	im := &ast.GenDecl{

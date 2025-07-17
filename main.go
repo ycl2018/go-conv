@@ -21,6 +21,7 @@ var (
 	verbose = flag.Bool("v", false, "verbose: enable verbose output log")
 	output  = flag.String("o", GENFILENAME, "output: generate code to fileName")
 	quiet   = flag.Bool("q", false, "quiet: no comment in generate code")
+	strconv = flag.Bool("strconv", false, "auto convert: string <-> integer type")
 )
 
 // seams for testing
@@ -42,6 +43,10 @@ Flags:
   -v:	       verbose: enable verbose output log
   -o:	       output:  generate code to fileName
   -q:	       quiet:   no comment in generate code
+  -strconv:	   auto convert: string <-> integer type
+               NOTE:
+                   string -> integer: by strconv.ParseInt(src,10,64)
+                   integer -> string: by strconv.Itoa
 `
 
 func main() {
@@ -95,7 +100,8 @@ func generate(patterns ...string) error {
 		builder := NewBuilder(fileToGen, p.Types)
 		for _, v := range vars {
 			src, dst := v.Signature.Params().At(0), v.Signature.Results().At(0)
-			v.BuildConfig.NoComment = *quiet
+			v.BuildConfig.NoComment = *quiet       // no comment in generate code
+			v.BuildConfig.EnableStrConv = *strconv // enable string <-> integer type convert
 			fnName := builder.BuildFunc(dst.Type(), src.Type(), v.BuildConfig)
 			for _, name := range v.VarSpec.Names {
 				builder.AddInit(name.Name, fnName)

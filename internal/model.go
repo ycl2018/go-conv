@@ -41,6 +41,7 @@ type BuildConfig struct {
 	FieldMatcher    *FieldMatcher
 	CaseInsensitive bool
 	NoComment       bool
+	EnableStrConv   bool
 }
 
 type Side int

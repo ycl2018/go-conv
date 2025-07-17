@@ -10,6 +10,9 @@ import (
 var BasicToBasic func(*a.Basic) *b.Basic
 
 // go-conv:generate
+var BasicToBasic2 func(*b.Basic) *a.Basic
+
+// go-conv:generate
 // go-conv:apply basicConvOpts
 var BasicToBasicOmit2 func(*a.Basic) *b.Basic
 

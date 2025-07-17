@@ -11,6 +11,7 @@ func TestNewBuilder(t *testing.T) {
 	*dryRun = false
 	*verbose = true
 	*quiet = false
+	*strconv = true
 	internal.DefaultLogger = internal.NewLogger(os.Stdout, *verbose)
 	err := generate("./testdata/cases/...")
 	if err != nil {

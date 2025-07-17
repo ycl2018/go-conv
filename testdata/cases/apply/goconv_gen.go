@@ -6,6 +6,7 @@ package cases
 import (
 	"github.com/ycl2018/go-conv/testdata/a"
 	"github.com/ycl2018/go-conv/testdata/b"
+	"strconv"
 )
 
 func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
@@ -13,7 +14,8 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 		dst = new(b.Struct)
 		dst.Student.Name = src.Student.Name
 		dst.Student.Class.Name = src.Student.Class.Name
-		dst.Student.Class.Grade = string(src.Student.Class.Grade)
+		tmpStr := strconv.Itoa(int(src.Student.Class.Grade))
+		dst.Student.Class.Grade = tmpStr
 		dst.Student.Teachers = src.Student.Teachers
 		dst.Student2.Name = src.Student2.Name
 		dst.Student2.Class.Name = src.Student2.Class.Name

@@ -30,6 +30,7 @@ Automatically generate conversion code based on function type declarations, supp
 - [x] Support Pointer <-> Struct conversion
 - [x] Support Array <-> Slice conversion
 - [x] Support extended custom conversion/filter/ignore options
+- [x] Support auto convert string <-> integer type
 
 # Example
 
@@ -233,6 +234,32 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 	}
 	return
 }
+```
+
+### -strconv
+
+use flag `-strconv` to enable auto convert string <-> integer type
+
+NOTE：
+string -> integer: by strconv.ParseInt(src,10,64)
+integer -> string: by strconv.Itoa
+
+```go
+		// string <-> integer
+		tmpInt, _ := strconv.ParseInt(src.StringInt, 10, 64)
+		dst.StringInt = int(tmpInt)
+		tmpInt1, _ := strconv.ParseInt(src.StringInt2, 10, 64)
+		dst.StringInt2 = int16(tmpInt1)
+		tmpInt2, _ := strconv.ParseInt(src.StringInt3, 10, 64)
+		dst.StringInt3 = int32(tmpInt2)
+		
+		// integer -> string
+        tmpStr := strconv.Itoa(int(src.StringInt))
+        dst.StringInt = tmpStr
+        tmpStr1 := strconv.Itoa(int(src.StringInt2))
+        dst.StringInt2 = tmpStr1
+        tmpStr2 := strconv.Itoa(int(src.StringInt3))
+        dst.StringInt3 = tmpStr2
 ```
 
 ## for More usage examples please refer to the testdata directory

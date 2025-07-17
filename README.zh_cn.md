@@ -30,6 +30,7 @@
 - [x] 支持Pointer <-> Struct 互转
 - [x] 支持Array <-> Slice 互转
 - [x] 支持扩展自定义转换/过滤/忽略选项
+- [x] 支持自动转换string <-> integer类型
 
 # Example
 
@@ -235,6 +236,32 @@ func PtrAStructToPtrBStruct(src *a.Struct) (dst *b.Struct) {
 	return
 }
 
+```
+
+### -strconv
+
+支持使用flag参数 `-strconv` 来自动转换string <-> integer类型
+
+NOTE：
+string -> integer: by strconv.ParseInt(src,10,64)
+integer -> string: by strconv.Itoa
+
+```go
+		// string <-> integer
+		tmpInt, _ := strconv.ParseInt(src.StringInt, 10, 64)
+		dst.StringInt = int(tmpInt)
+		tmpInt1, _ := strconv.ParseInt(src.StringInt2, 10, 64)
+		dst.StringInt2 = int16(tmpInt1)
+		tmpInt2, _ := strconv.ParseInt(src.StringInt3, 10, 64)
+		dst.StringInt3 = int32(tmpInt2)
+		
+		// integer -> string
+        tmpStr := strconv.Itoa(int(src.StringInt))
+        dst.StringInt = tmpStr
+        tmpStr1 := strconv.Itoa(int(src.StringInt2))
+        dst.StringInt2 = tmpStr1
+        tmpStr2 := strconv.Itoa(int(src.StringInt3))
+        dst.StringInt3 = tmpStr2
 ```
 
 ## 更多使用实例请参考 testdata 目录

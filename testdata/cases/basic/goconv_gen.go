@@ -164,12 +164,12 @@ func CopyPtrABasicPtrToPtrBBasicPtr(src *a.BasicPtr) (dst *b.BasicPtr) {
 			*dst.Rune = *src.Rune
 		}
 		if src.Ptr2 != nil {
-			if *src.Ptr2 != nil {
-				if **src.Ptr2 != nil {
+			if (*src.Ptr2) != nil {
+				if (*(*src.Ptr2)) != nil {
 					dst.Ptr2 = new(**string)
 					*dst.Ptr2 = new(*string)
 					**dst.Ptr2 = new(string)
-					***dst.Ptr2 = ***src.Ptr2
+					***dst.Ptr2 = *(*(*src.Ptr2))
 				}
 			}
 		}
@@ -375,7 +375,7 @@ func PtrABasicToPtrBBasicPtr(src *a.Basic) (dst *b.BasicPtr) {
 }
 func PtrPtrABasicToPtrBBasic(src **a.Basic) (dst *b.Basic) {
 	if src != nil {
-		dst = (*b.Basic)(*src)
+		dst = (*b.Basic)((*src))
 	}
 	return
 }

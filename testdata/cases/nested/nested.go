@@ -9,4 +9,5 @@ import (
 var (
 	StructPtrSliceToStructPtrSlice func(src []*a.Foo) (dst []*b.Foo)
 	NestedSliceToNestedSlice       func(src *a.NestedSlice) (dst *b.NestedSlice)
+	NestedSliceToNestedSlice2      func(src *b.NestedSlice) (dst *a.NestedSlice)
 )

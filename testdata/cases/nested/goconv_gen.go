@@ -6,6 +6,7 @@ package nested
 import (
 	"github.com/ycl2018/go-conv/testdata/a"
 	"github.com/ycl2018/go-conv/testdata/b"
+	"strconv"
 )
 
 func PtrAFooToPtrBFoo(src *a.Foo) (dst *b.Foo) {
@@ -69,6 +70,81 @@ func PtrANestedSliceToPtrBNestedSlice(src *a.NestedSlice) (dst *b.NestedSlice) {
 				dst.Map[tmpK] = tmpV
 			}
 		}
+		tmpInt, _ := strconv.ParseInt(src.StringInt, 10, 64)
+		dst.StringInt = int(tmpInt)
+		tmpInt1, _ := strconv.ParseInt(src.StringInt2, 10, 64)
+		dst.StringInt2 = int16(tmpInt1)
+		tmpInt2, _ := strconv.ParseInt(src.StringInt3, 10, 64)
+		dst.StringInt3 = int32(tmpInt2)
+	}
+	return
+}
+func PtrBFooToPtrAFoo(src *b.Foo) (dst *a.Foo) {
+	if src != nil {
+		dst = new(a.Foo)
+		dst.Bar.Field = new(string)
+		*dst.Bar.Field = src.Bar.Field
+		dst.Bar.Field2 = src.Bar.Field2
+	}
+	return
+}
+func PtrBNestedSliceToPtrANestedSlice(src *b.NestedSlice) (dst *a.NestedSlice) {
+	if src != nil {
+		dst = new(a.NestedSlice)
+		if len(src.Slice) > 0 {
+			dst.Slice = make([][][]*a.Foo, len(src.Slice))
+			for i := 0; i < len(src.Slice); i++ {
+				if len(src.Slice[i]) > 0 {
+					dst.Slice[i] = make([][]*a.Foo, len(src.Slice[i]))
+					for i1 := 0; i1 < len(src.Slice[i]); i1++ {
+						if len(src.Slice[i][i1]) > 0 {
+							dst.Slice[i][i1] = make([]*a.Foo, len(src.Slice[i][i1]))
+							for i2 := 0; i2 < len(src.Slice[i][i1]); i2++ {
+								if src.Slice[i][i1][i2] != nil {
+									dst.Slice[i][i1][i2] = PtrBFooToPtrAFoo(src.Slice[i][i1][i2])
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if len(src.Map) > 0 {
+			dst.Map = make(map[string]map[string]map[int]*a.Foo, len(src.Map))
+			for k, v := range src.Map {
+				var tmpK string
+				var tmpV map[string]map[int]*a.Foo
+				tmpK = k
+				if len(v) > 0 {
+					tmpV = make(map[string]map[int]*a.Foo, len(v))
+					for k1, v1 := range v {
+						var tmpK1 string
+						var tmpV1 map[int]*a.Foo
+						tmpK1 = k1
+						if len(v1) > 0 {
+							tmpV1 = make(map[int]*a.Foo, len(v1))
+							for k2, v2 := range v1 {
+								var tmpK2 int
+								var tmpV2 *a.Foo
+								tmpK2 = k2
+								if v2 != nil {
+									tmpV2 = PtrBFooToPtrAFoo(v2)
+								}
+								tmpV1[tmpK2] = tmpV2
+							}
+						}
+						tmpV[tmpK1] = tmpV1
+					}
+				}
+				dst.Map[tmpK] = tmpV
+			}
+		}
+		tmpStr := strconv.Itoa(int(src.StringInt))
+		dst.StringInt = tmpStr
+		tmpStr1 := strconv.Itoa(int(src.StringInt2))
+		dst.StringInt2 = tmpStr1
+		tmpStr2 := strconv.Itoa(int(src.StringInt3))
+		dst.StringInt3 = tmpStr2
 	}
 	return
 }
@@ -85,5 +161,6 @@ func SlicePtrAFooToSlicePtrBFoo(src []*a.Foo) (dst []*b.Foo) {
 }
 func init() {
 	NestedSliceToNestedSlice = PtrANestedSliceToPtrBNestedSlice
+	NestedSliceToNestedSlice2 = PtrBNestedSliceToPtrANestedSlice
 	StructPtrSliceToStructPtrSlice = SlicePtrAFooToSlicePtrBFoo
 }

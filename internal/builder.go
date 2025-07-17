@@ -121,7 +121,7 @@ func (b *Builder) BuildFunc(dst, src types.Type, buildConfig BuildConfig) (funcN
 func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 	var stmts []ast.Stmt
 	// struct can convert to struct directly
-	// we need check if the struct has match ignore fields
+	// we need check if the struct has match ignore fields before convert
 	checkIgnore := func() (matched bool) {
 		elemType, _, _ := dePointer(src.Type())
 		_, ok := isStruct(elemType)
@@ -145,6 +145,40 @@ func (b *Builder) _shallowCopy(dst, src *types.Var) ([]ast.Stmt, bool) {
 		var assignmentStmt = buildAssignStmt(dst.Name(), src.Name())
 		stmts = append(stmts, assignmentStmt)
 		return stmts, true
+	}
+	// string <-> integer
+	if b.buildConfig.EnableStrConv {
+		sb, ok := src.Type().Underlying().(*types.Basic)
+		db, ok2 := dst.Type().Underlying().(*types.Basic)
+		if ok && ok2 {
+			// convert strings -> ints ?
+			if sb.Info()&types.IsString != 0 && db.Info()&types.IsInteger != 0 {
+				// tmpInt, _ := strconv.ParseInt(src,10,64)
+				tmpIntName := b.scope.NextSymbol("tmpInt").Name
+				importName := b.importer.ImportRawPkg("strconv", "strconv")
+				defineTmpIntStmt := buildDefineStmt(tmpIntName+", _", fmt.Sprintf("%s.ParseInt(%s, 10, 64)", importName, src.Name()))
+				stmts = append(stmts, defineTmpIntStmt)
+				rhsName := tmpIntName
+				if dst.Type().String() != "int64" {
+					rhsName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), tmpIntName)
+				}
+				assignStmt := buildAssignStmt(dst.Name(), rhsName)
+				return append(stmts, assignStmt), true
+			}
+			// convert ints -> strings?
+			if sb.Info()&types.IsInteger != 0 && db.Info()&types.IsString != 0 {
+				tmpStrName := b.scope.NextSymbol("tmpStr").Name
+				importName := b.importer.ImportRawPkg("strconv", "strconv")
+				defineTmpStrStmt := buildDefineStmt(tmpStrName, fmt.Sprintf("%s.Itoa(int(%s))", importName, src.Name()))
+				stmts = append(stmts, defineTmpStrStmt)
+				rhsName := tmpStrName
+				if dst.Type().String() != "string" {
+					rhsName = fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), tmpStrName)
+				}
+				assignStmt := buildAssignStmt(dst.Name(), rhsName)
+				return append(stmts, assignStmt), true
+			}
+		}
 	}
 	if types.ConvertibleTo(src.Type(), dst.Type()) && !checkIgnore() {
 		convertName := fmt.Sprintf("%s(%s)", parenthesesName(b.importer.ImportType(dst.Type())), src.Name())
@@ -542,7 +576,7 @@ func (b *Builder) dePointerSrcStmt(dst *types.Var, src *types.Var, srcElemType t
 	ifStmt := buildIfStmt(src.Name(), token.NEQ, "nil")
 	var needParentheses = true
 	switch srcElemType.Underlying().(type) {
-	case *types.Struct, *types.Basic, *types.Pointer:
+	case *types.Struct, *types.Basic /*, *types.Pointer*/ :
 		needParentheses = false
 	}
 	ptrToSrcName := ptrToName(src.Name(), 1)

@@ -38,7 +38,12 @@ func PtrABasicToPtrBBasic1(src *a.Basic) (dst *b.Basic) {
 	}
 	return
 }
+func PtrBBasicToPtrABasic(src *b.Basic) (dst *a.Basic) {
+	dst = (*a.Basic)(src)
+	return
+}
 func init() {
 	BasicToBasic = PtrABasicToPtrBBasic
+	BasicToBasic2 = PtrBBasicToPtrABasic
 	BasicToBasicOmit2 = PtrABasicToPtrBBasic1
 }
