@@ -264,7 +264,8 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 		switch dstUnderType.(type) {
 		case *types.Basic, *types.Struct: // for named basic/struct type is a special basic type
 			if _, ok := dstUnderType.(*types.Struct); ok {
-				if b.buildConfig.BuildMode != BuildModeConv {
+				//  copy mode, but if dst is time.Time, use shallow copy
+				if b.buildConfig.BuildMode != BuildModeConv && !isTimeTime(dstType) {
 					break
 				}
 			}
@@ -293,10 +294,11 @@ func (b *Builder) buildStmt(dst *types.Var, src *types.Var) []ast.Stmt {
 	OUTER:
 		for i := range dstType.NumFields() {
 			dstField := dstType.Field(i)
+			dstFieldName := dstField.Name()
 			if !dstField.Exported() {
+				b.buildCommentExpr(&stmts, "omit unexported field:"+dstName+"."+dstFieldName)
 				continue
 			}
-			dstFieldName := dstField.Name()
 			if dstField.Embedded() {
 				dstVar := b.newVar(dstName+"."+dstFieldName, dstField.Type())
 				fieldStmt := b.buildStmt(dstVar, src)
