@@ -3,6 +3,7 @@ package internal
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"regexp"
 	"strings"
 	"unicode"
@@ -91,4 +92,13 @@ func cleanName(name string) string {
 	})
 
 	return output
+}
+
+// isTimeTime check if the type is time.Time
+func isTimeTime(named *types.Named) bool {
+	pkg := named.Obj().Pkg()
+	if pkg == nil {
+		return false
+	}
+	return pkg.Path() == "time" && named.Obj().Name() == "Time"
 }

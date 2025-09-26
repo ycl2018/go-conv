@@ -1,6 +1,8 @@
 package a
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type Basic struct {
 	Bool          bool
