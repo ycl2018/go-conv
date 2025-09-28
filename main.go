@@ -26,8 +26,7 @@ var (
 
 // seams for testing
 var (
-	stderr    io.Writer = os.Stderr
-	writeFile           = os.WriteFile
+	stderr io.Writer = os.Stderr
 )
 
 const usage = `go-conv: generate golang types convert/copy source code.
@@ -39,14 +38,14 @@ in the style of the go tool; see "go help packages".
 Hint: use "all" or "..." to match the entire workspace.
 
 Flags:
-  -n:	       dry run: show generate code,but not write to file
-  -v:	       verbose: enable verbose output log
-  -o:	       output:  generate code to fileName
-  -q:	       quiet:   no comment in generate code
-  -strconv:	   auto convert: string <-> integer type
+  -n:        dry run: show generate code,but not write to file
+  -v:        verbose: enable verbose output log
+  -o:        output:  generate code to fileName
+  -q:        quiet:   no comment in generate code
+  -strconv:  convert: auto convert string <-> integer type
                NOTE:
                    string -> integer: by strconv.ParseInt(src,10,64)
-                   integer -> string: by strconv.Itoa
+                   integer -> string: by strconv.Itoa(int(src))
 `
 
 func main() {
